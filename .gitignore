@@ -1,0 +1,108 @@
+# =========================
+# OS / Genéricos
+# =========================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# =========================
+# IntelliJ IDEA
+# =========================
+.idea/
+*.iml
+out/
+
+# Si usas run configs exportables, puedes permitir estos (descomenta si quieres versionarlos)
+# !.idea/runConfigurations/
+# !.idea/codeStyles/
+# !.idea/inspectionProfiles/
+
+# =========================
+# Maven
+# =========================
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+.buildNumber
+.mvn/timing.properties
+
+# Mantén el wrapper de Maven (no ignorar estos)
+!mvnw
+!mvnw.cmd
+!.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.properties
+
+# =========================
+# Gradle (si aplica)
+# =========================
+.gradle/
+build/
+**/build/
+!gradlew
+!gradlew.bat
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# =========================
+# Spring Boot / Config local
+# =========================
+# Archivos de propiedades/ YAML locales (no productivos)
+application-local.properties
+application-local.yml
+application-dev.properties
+application-dev.yml
+application-*.local.properties
+application-*.local.yml
+
+# Variables de entorno locales
+.env
+.env.*
+!.env.example
+
+# Certificados / claves
+*.jks
+*.p12
+*.pem
+*.key
+*.keystore
+
+# =========================
+# Logs / Temp / Cache
+# =========================
+logs/
+*.log
+*.log.*
+*.out
+*.tmp
+tmp/
+temp/
+.cache/
+hs_err_pid*
+replay_pid*
+
+# =========================
+# IDEs/editors alternativos (por si acaso)
+# =========================
+.vscode/
+.project
+.classpath
+.settings/
+
+# =========================
+# Frontend opcional en monorepo
+# =========================
+node_modules/
+dist/
+*.tsbuildinfo
+
+# =========================
+# Docker / Compose artefactos locales
+# =========================
+docker-data/
+*.pid
+pgdata/

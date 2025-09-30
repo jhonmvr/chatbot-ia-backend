@@ -1,0 +1,11 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17   # trae PostgreSQL 17 + pgvector preinstalado
+    environment:
+      POSTGRES_PASSWORD: masterylas20
+    ports:
+      - "25432:5432"
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:
