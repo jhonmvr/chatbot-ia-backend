@@ -6,7 +6,8 @@ import com.relative.chat.bot.ia.application.ports.out.EmbeddingsPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;
-@Service @RequiredArgsConstructor
+@RequiredArgsConstructor
+@Service
 public class IngestDocuments {
     private final EmbeddingsPort embeddings;
     private final VectorStore vectorStore;

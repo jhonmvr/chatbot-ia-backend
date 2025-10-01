@@ -1,4 +1,3 @@
-
 server:
   port: 8081
 management:
@@ -7,10 +6,31 @@ management:
       exposure:
         include: health,info,prometheus
 spring:
+  application:
+    name: chat.bot.ia
+  jpa:
+    properties:
+      hibernate.default_schema: chatbotia
   datasource:
     url: jdbc:postgresql://localhost:25432/chatbotia
     username: postgres
     password: masterylas20
+  ai:
+    openai:
+      api-key: sk-asdasdasdasdasd    # usa variable de entorno
+      # opcional: el modelo por defecto
+      chat:
+        options:
+          model: gpt-4o-mini
+      embedding:
+        options:
+          model: text-embedding-3-large
+    vectorstore:
+      pgvector:
+      index-type: HNSW
+      distance-type: COSINE_DISTANCE
+      dimensions: 1536
+      max-document-batch-size: 10000 # Optional: Maximum number of documents per batch
 ai:
   base-url: http://localhost:8000
 

@@ -8,7 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-@Repository @RequiredArgsConstructor
+@RequiredArgsConstructor
+@Repository
 public class PgvectorAdapter implements VectorStore {
     private final JdbcTemplate jdbc;
     private final String table = "embeddings";
