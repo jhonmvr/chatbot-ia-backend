@@ -1,15 +1,24 @@
 -- =========================================================
--- V1__core.sql  (NO requiere pgvector; crea kb_vector_ref)
+-- V1__core.sql  (NO requiere pgvector;
+ crea kb_vector_ref)
 -- =========================================================
 CREATE SCHEMA IF NOT EXISTS chatbotia;
+
 SET search_path TO chatbotia, public;
 
+
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 
 -- Utilidad
 CREATE OR REPLACE FUNCTION set_updated_at() RETURNS trigger AS $$
-BEGIN NEW.updated_at = NOW(); RETURN NEW; END; $$ LANGUAGE plpgsql;
+BEGIN NEW.updated_at = NOW();
+ RETURN NEW;
+ END;
+ $$ LANGUAGE plpgsql;
+
 
 -- =============== Tenancy / Planes (resumen) =================
 CREATE TABLE IF NOT EXISTS plan (
@@ -26,7 +35,9 @@ CREATE TABLE IF NOT EXISTS plan (
                                     ai_model VARCHAR(80),
                                     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_plan_code ON plan (UPPER(code));
+
 
 CREATE TABLE IF NOT EXISTS client (
                                       id UUID PRIMARY KEY,
@@ -39,9 +50,13 @@ CREATE TABLE IF NOT EXISTS client (
                                       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_client_name ON client (LOWER(name));
+
 CREATE INDEX IF NOT EXISTS idx_client_name_trgm ON client USING gin (name gin_trgm_ops);
+
 CREATE TRIGGER trg_client_upd BEFORE UPDATE ON client FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 
 CREATE TABLE IF NOT EXISTS subscription (
                                             id UUID PRIMARY KEY,
@@ -54,9 +69,13 @@ CREATE TABLE IF NOT EXISTS subscription (
                                             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 CREATE INDEX IF NOT EXISTS idx_sub_client ON subscription(client_id);
+
 CREATE INDEX IF NOT EXISTS idx_sub_status ON subscription(status);
+
 CREATE TRIGGER trg_sub_upd BEFORE UPDATE ON subscription FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 
 -- =============== Canales / Números =================
 CREATE TABLE IF NOT EXISTS client_phone (
@@ -74,9 +93,13 @@ CREATE TABLE IF NOT EXISTS client_phone (
                                             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                             CONSTRAINT uq_phone_per_client UNIQUE (client_id, channel, e164)
 );
+
 CREATE INDEX IF NOT EXISTS idx_client_phone_client ON client_phone(client_id);
+
 CREATE INDEX IF NOT EXISTS idx_client_phone_e164   ON client_phone(e164);
+
 CREATE TRIGGER trg_client_phone_upd BEFORE UPDATE ON client_phone FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 
 -- =============== Contactos =================
 CREATE TABLE IF NOT EXISTS contact (
@@ -94,9 +117,13 @@ CREATE TABLE IF NOT EXISTS contact (
                                        updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                        CONSTRAINT uq_contact_phone UNIQUE (client_id, phone_e164)
 );
+
 CREATE INDEX IF NOT EXISTS idx_contact_client ON contact(client_id);
+
 CREATE INDEX IF NOT EXISTS idx_contact_name_trgm ON contact USING gin (display_name gin_trgm_ops);
+
 CREATE TRIGGER trg_contact_upd BEFORE UPDATE ON contact FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 
 -- =============== Conversaciones / Mensajes =================
 CREATE TABLE IF NOT EXISTS conversation (
@@ -112,10 +139,15 @@ CREATE TABLE IF NOT EXISTS conversation (
                                             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 CREATE INDEX IF NOT EXISTS idx_conv_client  ON conversation(client_id);
+
 CREATE INDEX IF NOT EXISTS idx_conv_contact ON conversation(contact_id);
+
 CREATE INDEX IF NOT EXISTS idx_conv_status  ON conversation(status);
+
 CREATE TRIGGER trg_conv_upd BEFORE UPDATE ON conversation FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 
 CREATE TABLE IF NOT EXISTS message (
                                        id UUID PRIMARY KEY,
@@ -137,10 +169,15 @@ CREATE TABLE IF NOT EXISTS message (
                                        delivered_at TIMESTAMPTZ,
                                        read_at      TIMESTAMPTZ
 );
+
 CREATE INDEX IF NOT EXISTS idx_msg_conv    ON message(conversation_id);
+
 CREATE INDEX IF NOT EXISTS idx_msg_client  ON message(client_id);
+
 CREATE INDEX IF NOT EXISTS idx_msg_created ON message(created_at);
+
 CREATE INDEX IF NOT EXISTS idx_msg_body_trgm ON message USING gin (body gin_trgm_ops);
+
 
 -- =============== Cola (interno) =================
 CREATE TABLE IF NOT EXISTS outbound_queue (
@@ -160,9 +197,13 @@ CREATE TABLE IF NOT EXISTS outbound_queue (
                                               created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                               updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 CREATE INDEX IF NOT EXISTS idx_outq_client_status ON outbound_queue(client_id, status);
+
 CREATE INDEX IF NOT EXISTS idx_outq_schedule      ON outbound_queue(schedule_at);
+
 CREATE TRIGGER trg_outq_upd BEFORE UPDATE ON outbound_queue FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 
 -- =============== Plantillas =================
 CREATE TABLE IF NOT EXISTS message_template (
@@ -177,10 +218,14 @@ CREATE TABLE IF NOT EXISTS message_template (
                                                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_template
     ON message_template (client_id, channel, LOWER(name));
+
 CREATE INDEX IF NOT EXISTS idx_template_client ON message_template(client_id);
+
 CREATE TRIGGER trg_template_upd BEFORE UPDATE ON message_template FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 
 -- =============== KB (texto y metadata) =================
 CREATE TABLE IF NOT EXISTS kb (
@@ -191,9 +236,13 @@ CREATE TABLE IF NOT EXISTS kb (
                                   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 CREATE UNIQUE INDEX IF NOT EXISTS uq_kb_name ON kb (client_id, LOWER(name));
+
 CREATE INDEX IF NOT EXISTS idx_kb_client ON kb(client_id);
+
 CREATE TRIGGER trg_kb_upd BEFORE UPDATE ON kb FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 
 CREATE TABLE IF NOT EXISTS kb_document (
                                            id UUID PRIMARY KEY,
@@ -207,8 +256,11 @@ CREATE TABLE IF NOT EXISTS kb_document (
                                            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
 CREATE INDEX IF NOT EXISTS idx_kbd_kb ON kb_document(kb_id);
+
 CREATE TRIGGER trg_kbd_upd BEFORE UPDATE ON kb_document FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+
 
 CREATE TABLE IF NOT EXISTS kb_chunk (
                                         id UUID PRIMARY KEY,
@@ -219,8 +271,11 @@ CREATE TABLE IF NOT EXISTS kb_chunk (
                                         created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                         CONSTRAINT uq_kb_chunk UNIQUE (document_id, chunk_index)
 );
+
 CREATE INDEX IF NOT EXISTS idx_kbchunk_doc ON kb_chunk(document_id);
+
 CREATE INDEX IF NOT EXISTS idx_kbchunk_content_trgm ON kb_chunk USING gin (content gin_trgm_ops);
+
 
 -- =============== Referencia al vector store (SIEMPRE) =================
 -- Default backend = 'pgvector', y lista blanca de opciones
@@ -228,11 +283,14 @@ CREATE TABLE IF NOT EXISTS kb_vector_ref (
                                              chunk_id   UUID PRIMARY KEY REFERENCES kb_chunk(id) ON DELETE CASCADE,
                                              backend    VARCHAR(40)  NOT NULL DEFAULT 'pgvector',
                                              index_name VARCHAR(128) NOT NULL DEFAULT 'kb_embedding_pgvector',
-                                             vector_id  VARCHAR(256) NOT NULL,  -- id en el backend; en pgvector puede ser chunk_id::text
+                                             vector_id  VARCHAR(256) NOT NULL,  -- id en el backend;
+ en pgvector puede ser chunk_id::text
                                              created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
                                              CONSTRAINT ck_kbvec_backend CHECK (backend IN ('pgvector','qdrant','pinecone','milvus','weaviate','opensearch'))
 );
+
 CREATE INDEX IF NOT EXISTS idx_kbvec_backend_index ON kb_vector_ref (backend, index_name);
+
 
 -- =============== Métricas =================
 CREATE TABLE IF NOT EXISTS usage_daily (
@@ -247,7 +305,9 @@ CREATE TABLE IF NOT EXISTS usage_daily (
                                            created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                                            CONSTRAINT uq_usage_day UNIQUE (client_id, day)
 );
+
 CREATE INDEX IF NOT EXISTS idx_usage_client ON usage_daily(client_id);
+
 
 -- Vista útil
 CREATE OR REPLACE VIEW v_conversation_last_message AS
@@ -261,4 +321,6 @@ SELECT DISTINCT ON (m.conversation_id)
 FROM message m
 ORDER BY m.conversation_id, m.created_at DESC;
 
+
 COMMENT ON SCHEMA chatbotia IS 'Core del chatbot IA (desacoplado). kb_vector_ref siempre presente y por defecto backend=pgvector.';
+
