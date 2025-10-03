@@ -21,28 +21,40 @@ spring:
     contexts: prod
     drop-first: false  # NUNCA cambiar a true en producción
 
-# Configuración del chatbot
+# Configuración del chatbot para producción
 app:
+  # AI - Usar OpenAI en producción
+  ai:
+    embeddings:
+      provider: openai
+    
+    openai:
+      api-url: https://api.openai.com
+      api-key: ${OPENAI_API_KEY}
+      timeout: 90  # Mayor timeout en producción
+      
+      embeddings:
+        model: text-embedding-3-large  # Mejor calidad en producción
+        dimensions: 3072
+  
+  # WhatsApp - Usar Meta en producción (recomendado)
   whatsapp:
     provider: meta  # meta (recomendado), twilio, mock
+    
     meta:
       access-token: ${META_WHATSAPP_ACCESS_TOKEN}
       phone-number-id: ${META_WHATSAPP_PHONE_NUMBER_ID}
       webhook-verify-token: ${META_WHATSAPP_WEBHOOK_VERIFY_TOKEN}
       api-version: ${META_WHATSAPP_API_VERSION:v21.0}
+    
     twilio:
       account-sid: ${TWILIO_ACCOUNT_SID:}
       auth-token: ${TWILIO_AUTH_TOKEN:}
+      whatsapp-from: ${TWILIO_WHATSAPP_FROM:}
   
-  ai:
-    provider: openai
-    openai:
-      api-key: ${OPENAI_API_KEY}
-      model: ${AI_MODEL:gpt-4o-mini}
-      embedding-model: ${AI_EMBEDDING_MODEL:text-embedding-3-large}
-  
+  # Knowledge Base
   knowledge-base:
-    default-namespace: kb
+    default-namespace: kb_prod
     top-k-results: 5
     max-conversation-history: 10
 
