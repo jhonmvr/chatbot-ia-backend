@@ -1,62 +1,102 @@
 package com.relative.chat.bot.ia.domain.messaging;
- import com.relative.chat.bot.ia.domain.common.*;
- import com.relative.chat.bot.ia.domain.identity.*;
- import com.relative.chat.bot.ia.domain.types.*;
- import java.time.*;
- import java.util.*;
- public final class OutboundItem{
-private final Id<OutboundItem> id;
- private final Id<Client> clientId;
- private final Id<Contact> contactId;
- private final Id<Conversation> conversationId;
- private final Id<ClientPhone> phoneId;
- private final Channel channel;
- private QueueStatus status;
- private String payload;
- private int attempts;
- private Instant nextAttemptAt;
- private String lastError;
- public OutboundItem(Id<OutboundItem> id, Id<Client> clientId, Id<Contact> contactId, Id<Conversation> conversationId, Id<ClientPhone> phoneId, Channel channel, String payload){
-this.id=id;
-    this.clientId=clientId;
-     this.contactId = contactId;
-     this.conversationId = conversationId;
-     this.phoneId = phoneId;
-     this.channel=channel;
-    this.payload=payload;
-    this.status=QueueStatus.PENDING;
-    this.attempts=0;
- }
 
-  public OutboundItem(Id<Object> objectId, Id<Object> of, Channel channel, String body, Id<OutboundItem> id, Id<Client> clientId, Id<Contact> contactId, Id<Conversation> conversationId, Id<ClientPhone> phoneId, Channel channel1) {
-      this.id = id;
-      this.clientId = clientId;
-      this.contactId = contactId;
-      this.conversationId = conversationId;
-      this.phoneId = phoneId;
-      this.channel = channel1;
-  }
+import com.relative.chat.bot.ia.domain.common.*;
+import com.relative.chat.bot.ia.domain.identity.*;
+import com.relative.chat.bot.ia.domain.types.*;
+import java.time.*;
+import java.util.*;
 
-  public Id<OutboundItem> id(){return id;
-}
-public Id<Client> clientId(){return clientId;
-}
-public Optional<Id<Contact>> contactId(){return Optional.ofNullable(contactId);
-}
-public Optional<Id<Conversation>> conversationId(){return Optional.ofNullable(conversationId);
-}
-public Optional<Id<ClientPhone>> phoneId(){return Optional.ofNullable(phoneId);
-}
-public Channel channel(){return channel;
-}
-public QueueStatus status(){return status;
-}
-public String payload(){return payload;
-}
-public int attempts(){return attempts;
-}
-public Optional<Instant> nextAttemptAt(){return Optional.ofNullable(nextAttemptAt);
-}
-public Optional<String> lastError(){return Optional.ofNullable(lastError);
-}
+public final class OutboundItem {
+    
+    private final LongId<OutboundItem> id;
+    private final UuidId<Client> clientId;
+    private final UuidId<Contact> contactId;
+    private final UuidId<Conversation> conversationId;
+    private final UuidId<ClientPhone> phoneId;
+    private final Channel channel;
+    private QueueStatus status;
+    private String body;
+    private int retries;
+    private Instant scheduleAt;
+    private String lastError;
+    
+    public OutboundItem(
+            LongId<OutboundItem> id,
+            UuidId<Client> clientId,
+            UuidId<Contact> contactId,
+            UuidId<Conversation> conversationId,
+            UuidId<ClientPhone> phoneId,
+            Channel channel,
+            String body
+    ) {
+        this.id = id;
+        this.clientId = clientId;
+        this.contactId = contactId;
+        this.conversationId = conversationId;
+        this.phoneId = phoneId;
+        this.channel = channel;
+        this.body = body;
+        this.status = QueueStatus.PENDING;
+        this.retries = 0;
+    }
+    
+    public void markSent() {
+        this.status = QueueStatus.SENT;
+    }
+    
+    public void markFailed(String error) {
+        this.status = QueueStatus.FAILED;
+        this.lastError = error;
+        this.retries++;
+    }
+    
+    public void scheduleRetry(Instant at) {
+        this.status = QueueStatus.PENDING;
+        this.scheduleAt = at;
+        this.retries++;
+    }
+    
+    public LongId<OutboundItem> id() {
+        return id;
+    }
+    
+    public UuidId<Client> clientId() {
+        return clientId;
+    }
+    
+    public Optional<UuidId<Contact>> contactId() {
+        return Optional.ofNullable(contactId);
+    }
+    
+    public Optional<UuidId<Conversation>> conversationId() {
+        return Optional.ofNullable(conversationId);
+    }
+    
+    public Optional<UuidId<ClientPhone>> phoneId() {
+        return Optional.ofNullable(phoneId);
+    }
+    
+    public Channel channel() {
+        return channel;
+    }
+    
+    public QueueStatus status() {
+        return status;
+    }
+    
+    public String body() {
+        return body;
+    }
+    
+    public int retries() {
+        return retries;
+    }
+    
+    public Optional<Instant> scheduleAt() {
+        return Optional.ofNullable(scheduleAt);
+    }
+    
+    public Optional<String> lastError() {
+        return Optional.ofNullable(lastError);
+    }
 }
