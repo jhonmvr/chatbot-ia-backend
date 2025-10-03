@@ -15,6 +15,11 @@ spring:
     properties:
       hibernate:
         default_schema: chatbotia
+  
+  liquibase:
+    enabled: true
+    contexts: prod
+    drop-first: false  # NUNCA cambiar a true en producción
 
 # Configuración del chatbot
 app:

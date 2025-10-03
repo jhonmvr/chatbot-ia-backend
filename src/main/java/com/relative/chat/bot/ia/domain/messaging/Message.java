@@ -94,4 +94,32 @@ public final class Message {
     public Instant createdAt() {
         return createdAt;
     }
+    
+    public Optional<Instant> sentAt() {
+        return Optional.ofNullable(sentAt);
+    }
+    
+    public Optional<Instant> deliveredAt() {
+        return Optional.ofNullable(deliveredAt);
+    }
+    
+    public Optional<Instant> readAt() {
+        return Optional.ofNullable(readAt);
+    }
+    
+    public Optional<String> externalId() {
+        return Optional.ofNullable(externalId);
+    }
+    
+    public Optional<String> error() {
+        return Optional.ofNullable(error);
+    }
+    
+    public MessageStatus status() {
+        if (error != null) return MessageStatus.FAILED;
+        if (readAt != null) return MessageStatus.READ;
+        if (deliveredAt != null) return MessageStatus.DELIVERED;
+        if (sentAt != null) return MessageStatus.SENT;
+        return MessageStatus.PENDING;
+    }
 }

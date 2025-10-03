@@ -1,6 +1,6 @@
 -- =========================================================
 -- V1__core.sql  (NO requiere pgvector;
- crea kb_vector_ref)
+-- crea kb_vector_ref)
 -- =========================================================
 CREATE SCHEMA IF NOT EXISTS chatbotia;
 
@@ -284,7 +284,7 @@ CREATE TABLE IF NOT EXISTS kb_vector_ref (
                                              backend    VARCHAR(40)  NOT NULL DEFAULT 'pgvector',
                                              index_name VARCHAR(128) NOT NULL DEFAULT 'kb_embedding_pgvector',
                                              vector_id  VARCHAR(256) NOT NULL,  -- id en el backend;
- en pgvector puede ser chunk_id::text
+ --en pgvector puede ser chunk_id::text
                                              created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
                                              CONSTRAINT ck_kbvec_backend CHECK (backend IN ('pgvector','qdrant','pinecone','milvus','weaviate','opensearch'))
 );
