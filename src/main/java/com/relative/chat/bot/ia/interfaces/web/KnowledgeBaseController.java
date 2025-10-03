@@ -8,6 +8,13 @@ import com.relative.chat.bot.ia.domain.common.UuidId;
 import com.relative.chat.bot.ia.domain.identity.Client;
 import com.relative.chat.bot.ia.domain.knowledge.Kb;
 import com.relative.chat.bot.ia.domain.model.Document;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -24,6 +31,7 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/knowledge-base")
 @RequiredArgsConstructor
+@Tag(name = "Knowledge Base", description = "API para gestionar la base de conocimiento (RAG) del chatbot")
 public class KnowledgeBaseController {
     
     // ✅ CORRECTO: Solo inyectamos Use Cases (Application Layer)
@@ -36,8 +44,57 @@ public class KnowledgeBaseController {
      * Crea un Knowledge Base
      * POST /api/knowledge-base
      */
+    @Operation(
+        summary = "Crear una nueva base de conocimiento",
+        description = "Crea un Knowledge Base para un cliente específico donde se podrán almacenar documentos para el sistema RAG"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Knowledge Base creado exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "kbId": "550e8400-e29b-41d4-a716-446655440000",
+                      "message": "KB creado"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Datos inválidos o error al crear",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "clientId y name son requeridos"
+                    }
+                    """)
+            )
+        )
+    })
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Map<String, String>> createKb(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<Map<String, String>> createKb(
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Datos del Knowledge Base a crear",
+            required = true,
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "clientId": "123e4567-e89b-12d3-a456-426614174000",
+                      "name": "Productos y Servicios",
+                      "description": "Base de conocimiento sobre nuestros productos"
+                    }
+                    """)
+            )
+        )
+        @RequestBody Map<String, Object> request
+    ) {
         try {
             String clientId = (String) request.get("clientId");
             String name = (String) request.get("name");
@@ -73,9 +130,66 @@ public class KnowledgeBaseController {
      * Ingesta documentos al Knowledge Base
      * POST /api/knowledge-base/{kbId}/ingest
      */
+    @Operation(
+        summary = "Ingestar documentos en el Knowledge Base",
+        description = "Agrega documentos al Knowledge Base para que el chatbot pueda usar esa información en sus respuestas (RAG). Los documentos se convierten en embeddings y se almacenan en el vector store."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Documentos ingestados exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "message": "Documentos ingestados exitosamente",
+                      "count": 3
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Error al ingestar documentos",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "Se requiere al menos un documento"
+                    }
+                    """)
+            )
+        )
+    })
     @PostMapping("/{kbId}/ingest")
     public ResponseEntity<Map<String, Object>> ingestDocuments(
+            @Parameter(description = "UUID del Knowledge Base", required = true, example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String kbId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "Lista de documentos a ingestar",
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(value = """
+                        {
+                          "documents": [
+                            {
+                              "content": "Nuestro horario de atención es de Lunes a Viernes de 9am a 6pm",
+                              "source": "FAQ",
+                              "category": "horarios"
+                            },
+                            {
+                              "content": "Ofrecemos envíos gratuitos en compras mayores a $50",
+                              "source": "Políticas",
+                              "category": "envios"
+                            }
+                          ]
+                        }
+                        """)
+                )
+            )
             @RequestBody Map<String, Object> request
     ) {
         try {
@@ -127,9 +241,59 @@ public class KnowledgeBaseController {
      * Busca en el Knowledge Base
      * POST /api/knowledge-base/{kbId}/search
      */
+    @Operation(
+        summary = "Buscar en el Knowledge Base",
+        description = "Realiza una búsqueda semántica en el Knowledge Base usando embeddings. Retorna los documentos más relevantes según la consulta."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Búsqueda realizada exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "query": "¿Cuál es el horario de atención?",
+                      "results": [
+                        "Nuestro horario de atención es de Lunes a Viernes de 9am a 6pm",
+                        "Los sábados atendemos de 10am a 2pm"
+                      ],
+                      "count": 2
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Query inválido",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "error": "query es requerido"
+                    }
+                    """)
+            )
+        )
+    })
     @PostMapping("/{kbId}/search")
     public ResponseEntity<Map<String, Object>> search(
+            @Parameter(description = "UUID del Knowledge Base", required = true, example = "550e8400-e29b-41d4-a716-446655440000")
             @PathVariable String kbId,
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                description = "Consulta de búsqueda",
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(value = """
+                        {
+                          "query": "¿Cuál es el horario de atención?",
+                          "topK": 5
+                        }
+                        """)
+                )
+            )
             @RequestBody Map<String, Object> request
     ) {
         try {
@@ -173,8 +337,34 @@ public class KnowledgeBaseController {
      * Obtiene un Knowledge Base específico
      * GET /api/knowledge-base/{id}
      */
+    @Operation(
+        summary = "Obtener un Knowledge Base",
+        description = "Retorna la información de un Knowledge Base específico"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Knowledge Base encontrado",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "clientId": "123e4567-e89b-12d3-a456-426614174000",
+                      "name": "Productos y Servicios",
+                      "description": "Base de conocimiento sobre nuestros productos"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "400", description = "ID inválido"),
+        @ApiResponse(responseCode = "404", description = "Knowledge Base no encontrado")
+    })
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getKb(@PathVariable String id) {
+    public ResponseEntity<Map<String, Object>> getKb(
+        @Parameter(description = "UUID del Knowledge Base", required = true, example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable String id
+    ) {
         try {
             UuidId<Kb> kbUuid = UuidId.of(UUID.fromString(id));
             

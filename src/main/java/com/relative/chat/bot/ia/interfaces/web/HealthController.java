@@ -1,5 +1,11 @@
 package com.relative.chat.bot.ia.interfaces.web;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,6 +27,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@Tag(name = "Sistema", description = "Endpoints de monitoreo y estado del sistema")
 public class HealthController {
     
     private final DataSource dataSource;
@@ -38,6 +45,26 @@ public class HealthController {
      * Health check básico
      * GET /api/health
      */
+    @Operation(
+        summary = "Health check básico",
+        description = "Retorna el estado básico de la aplicación"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Aplicación funcionando correctamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "UP",
+                      "timestamp": "2025-10-03T10:30:00Z",
+                      "application": "chatbot-ia"
+                    }
+                    """)
+            )
+        )
+    })
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> health() {
         Map<String, Object> health = new HashMap<>();
@@ -52,6 +79,41 @@ public class HealthController {
      * Health check detallado con dependencias
      * GET /api/health/full
      */
+    @Operation(
+        summary = "Health check detallado",
+        description = "Retorna el estado detallado de la aplicación incluyendo base de datos y servicios externos"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Estado detallado del sistema",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "UP",
+                      "timestamp": "2025-10-03T10:30:00Z",
+                      "application": "chatbot-ia",
+                      "database": {
+                        "status": "UP",
+                        "driver": "PostgreSQL",
+                        "version": "16.0"
+                      },
+                      "services": {
+                        "whatsapp": {
+                          "provider": "meta",
+                          "status": "CONFIGURED"
+                        },
+                        "ai": {
+                          "provider": "openai",
+                          "status": "CONFIGURED"
+                        }
+                      }
+                    }
+                    """)
+            )
+        )
+    })
     @GetMapping("/health/full")
     public ResponseEntity<Map<String, Object>> healthFull() {
         Map<String, Object> health = new HashMap<>();
@@ -91,6 +153,35 @@ public class HealthController {
      * Información de la aplicación
      * GET /api/info
      */
+    @Operation(
+        summary = "Información de la aplicación",
+        description = "Retorna información general de la aplicación, versión y endpoints disponibles"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Información de la aplicación",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "name": "chatbot-ia",
+                      "version": "1.0.0",
+                      "description": "Chatbot con IA para WhatsApp",
+                      "whatsappProvider": "meta",
+                      "aiProvider": "openai",
+                      "endpoints": {
+                        "webhook": "/webhook/whatsapp",
+                        "webhookMeta": "/webhooks/whatsapp/meta",
+                        "conversations": "/api/conversations",
+                        "knowledgeBase": "/api/knowledge-base",
+                        "health": "/api/health"
+                      }
+                    }
+                    """)
+            )
+        )
+    })
     @GetMapping("/info")
     public ResponseEntity<Map<String, Object>> info() {
         Map<String, Object> info = new HashMap<>();

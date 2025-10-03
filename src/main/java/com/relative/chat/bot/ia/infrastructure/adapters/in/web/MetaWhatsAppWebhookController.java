@@ -3,6 +3,14 @@ package com.relative.chat.bot.ia.infrastructure.adapters.in.web;
 import com.relative.chat.bot.ia.application.dto.MessageCommand;
 import com.relative.chat.bot.ia.application.usecases.ReceiveWhatsAppMessage;
 import com.relative.chat.bot.ia.domain.types.Channel;
+import io.swagger.v3.oas.annotations.Hidden;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -23,6 +31,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/webhooks/whatsapp/meta")
 @RequiredArgsConstructor
+@Tag(name = "Webhooks", description = "Endpoints para recibir notificaciones de servicios externos")
 public class MetaWhatsAppWebhookController {
     
     private final ReceiveWhatsAppMessage receiveWhatsAppMessage;
@@ -34,10 +43,25 @@ public class MetaWhatsAppWebhookController {
      * Endpoint de verificación del webhook (GET)
      * Meta lo llama al configurar el webhook
      */
+    @Operation(
+        summary = "Verificación del webhook de Meta WhatsApp",
+        description = "Endpoint usado por Meta para verificar el webhook durante la configuración. Retorna el challenge si el token es válido."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Webhook verificado exitosamente",
+            content = @Content(mediaType = "text/plain")
+        ),
+        @ApiResponse(responseCode = "403", description = "Token de verificación inválido")
+    })
     @GetMapping
     public ResponseEntity<?> verifyWebhook(
+            @Parameter(description = "Modo de verificación (debe ser 'subscribe')", example = "subscribe")
             @RequestParam(value = "hub.mode", required = false) String mode,
+            @Parameter(description = "Token de verificación configurado en Meta", example = "mi_token_secreto")
             @RequestParam(value = "hub.verify_token", required = false) String token,
+            @Parameter(description = "Challenge enviado por Meta", example = "1234567890")
             @RequestParam(value = "hub.challenge", required = false) String challenge
     ) {
         log.info("Verificación de webhook recibida: mode={}, token={}", mode, token);
@@ -55,8 +79,60 @@ public class MetaWhatsAppWebhookController {
     /**
      * Endpoint para recibir notificaciones del webhook (POST)
      */
+    @Operation(
+        summary = "Recibir notificaciones de Meta WhatsApp",
+        description = "Endpoint que recibe las notificaciones de mensajes entrantes desde Meta WhatsApp Business API"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Notificación procesada correctamente"
+        )
+    })
     @PostMapping
-    public ResponseEntity<?> handleWebhook(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> handleWebhook(
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Payload de notificación de Meta WhatsApp",
+            required = true,
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "object": "whatsapp_business_account",
+                      "entry": [
+                        {
+                          "id": "WHATSAPP_BUSINESS_ACCOUNT_ID",
+                          "changes": [
+                            {
+                              "field": "messages",
+                              "value": {
+                                "messaging_product": "whatsapp",
+                                "metadata": {
+                                  "display_phone_number": "593987654321",
+                                  "phone_number_id": "PHONE_NUMBER_ID"
+                                },
+                                "messages": [
+                                  {
+                                    "from": "593998765432",
+                                    "id": "wamid.HBgLNTkzOTg3NjU0MzIyFQIAERgSOTkzOTE0NTY3ODkwMTIzNDUA",
+                                    "timestamp": "1698765432",
+                                    "type": "text",
+                                    "text": {
+                                      "body": "Hola, tengo una pregunta"
+                                    }
+                                  }
+                                ]
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                    """)
+            )
+        )
+        @RequestBody Map<String, Object> payload
+    ) {
         log.debug("Webhook recibido: {}", payload);
         
         try {
@@ -108,6 +184,7 @@ public class MetaWhatsAppWebhookController {
     /**
      * Procesa los mensajes recibidos
      */
+    @Hidden
     private void processMessages(Map<String, Object> value) {
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> messages = (List<Map<String, Object>>) value.get("messages");
@@ -132,6 +209,7 @@ public class MetaWhatsAppWebhookController {
     /**
      * Procesa un mensaje individual
      */
+    @Hidden
     private void processMessage(Map<String, Object> message, String phoneNumberId) {
         String messageId = (String) message.get("id");
         String from = (String) message.get("from");

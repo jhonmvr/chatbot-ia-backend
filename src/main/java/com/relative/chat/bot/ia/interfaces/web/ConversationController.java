@@ -6,6 +6,13 @@ import com.relative.chat.bot.ia.domain.common.UuidId;
 import com.relative.chat.bot.ia.domain.messaging.Conversation;
 import com.relative.chat.bot.ia.domain.messaging.Message;
 import com.relative.chat.bot.ia.domain.ports.messaging.ConversationRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +27,7 @@ import java.util.*;
 @RestController
 @RequestMapping("/api/conversations")
 @RequiredArgsConstructor
+@Tag(name = "Conversaciones", description = "API para gestionar conversaciones del chatbot con clientes")
 public class ConversationController {
     
     private final ConversationRepository conversationRepository;
@@ -30,8 +38,45 @@ public class ConversationController {
      * Obtiene una conversación específica con su historial
      * GET /api/conversations/{id}
      */
+    @Operation(
+        summary = "Obtener conversación con historial completo",
+        description = "Retorna los detalles de una conversación incluyendo todos sus mensajes ordenados cronológicamente"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Conversación encontrada exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "clientId": "123e4567-e89b-12d3-a456-426614174000",
+                      "contactId": "987fbc97-4bed-5078-9f07-9141ba07c9f3",
+                      "status": "OPEN",
+                      "startedAt": "2025-10-03T10:30:00Z",
+                      "closedAt": null,
+                      "messageCount": 5,
+                      "messages": [
+                        {
+                          "id": "msg-001",
+                          "direction": "INBOUND",
+                          "content": "Hola, tengo una consulta",
+                          "createdAt": "2025-10-03T10:30:00Z"
+                        }
+                      ]
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "400", description = "ID de conversación inválido"),
+        @ApiResponse(responseCode = "404", description = "Conversación no encontrada")
+    })
     @GetMapping("/{id}")
-    public ResponseEntity<Map<String, Object>> getConversation(@PathVariable String id) {
+    public ResponseEntity<Map<String, Object>> getConversation(
+        @Parameter(description = "UUID de la conversación", required = true, example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable String id
+    ) {
         try {
             UuidId<Conversation> conversationId = UuidId.of(UUID.fromString(id));
             
@@ -75,8 +120,44 @@ public class ConversationController {
      * Cierra una conversación
      * POST /api/conversations/{id}/close
      */
+    @Operation(
+        summary = "Cerrar una conversación",
+        description = "Marca una conversación como cerrada. Una vez cerrada, no se podrán enviar más mensajes."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Conversación cerrada exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "message": "Conversación cerrada exitosamente"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Error al cerrar la conversación",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "La conversación ya está cerrada"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "404", description = "Conversación no encontrada")
+    })
     @PostMapping("/{id}/close")
-    public ResponseEntity<Map<String, String>> closeConversation(@PathVariable String id) {
+    public ResponseEntity<Map<String, String>> closeConversation(
+        @Parameter(description = "UUID de la conversación", required = true, example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable String id
+    ) {
         try {
             UuidId<Conversation> conversationId = UuidId.of(UUID.fromString(id));
             
