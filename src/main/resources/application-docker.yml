@@ -16,6 +16,7 @@ spring:
       hibernate.default_schema: chatbotia
       hibernate.format_sql: false   # formatea el SQL
       hibernate.highlight_sql: false
+      hibernate.hbm2ddl.auto: validate  # Solo validar, no crear esquemas
   datasource:
     url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:25432}/${POSTGRES_DB:chatbotia}
     username: ${POSTGRES_USER:postgres}
