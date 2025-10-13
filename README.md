@@ -1,92 +1,153 @@
-# chatbot-backend
+# Chatbot IA Backend - Docker Setup
 
+Este proyecto incluye toda la configuración necesaria para ejecutar la aplicación Spring Boot con Docker.
 
+## Archivos Creados
 
-## Getting started
+- `docker-compose-db.yml` - Configuración completa de Docker Compose con base de datos y aplicación
+- `Dockerfile` - Imagen optimizada para la aplicación Spring Boot
+- `env.docker` - Variables de entorno para Docker
+- `application-docker.yml` - Configuración específica para Docker
+- `.dockerignore` - Archivos a ignorar durante el build
+- `start-docker.sh` - Script de inicio para Linux/Mac
+- `start-docker.ps1` - Script de inicio para Windows PowerShell
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Configuración Actualizada
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- `application.yml` - Actualizado para usar variables de entorno
+- `docker-compose-db.yml` - Expandido para incluir la aplicación y configuración completa
 
-## Add your files
+## Uso Rápido
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+### Windows (PowerShell)
+```powershell
+# Iniciar servicios
+.\start-docker.ps1
 
+# Reconstruir e iniciar
+.\start-docker.ps1 -Build
+
+# Ver logs
+.\start-docker.ps1 -Logs
+
+# Detener servicios
+.\start-docker.ps1 -Down
 ```
-cd existing_repo
-git remote add origin https://service.relative-engine.com:8943/relative/ai/chatbot-backend.git
-git branch -M main
-git push -uf origin main
+
+### Linux/Mac (Bash)
+```bash
+# Iniciar servicios
+./start-docker.sh
+
+# Reconstruir e iniciar
+./start-docker.sh --build
+
+# Ver logs
+./start-docker.sh --logs
+
+# Detener servicios
+./start-docker.sh --down
 ```
 
-## Integrate with your tools
+### Docker Compose Directo
+```bash
+# Iniciar servicios
+docker-compose -f docker-compose-db.yml up -d
 
-- [ ] [Set up project integrations](https://service.relative-engine.com:8943/relative/ai/chatbot-backend/-/settings/integrations)
+# Reconstruir e iniciar
+docker-compose -f docker-compose-db.yml up -d --build
 
-## Collaborate with your team
+# Ver logs
+docker-compose -f docker-compose-db.yml logs -f
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+# Detener servicios
+docker-compose -f docker-compose-db.yml down
+```
 
-## Test and Deploy
+## Servicios Disponibles
 
-Use the built-in continuous integration in GitLab.
+Una vez iniciados los servicios, tendrás acceso a:
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+- **Aplicación**: http://localhost:8180/agent-ai-backend
+- **Swagger UI**: http://localhost:8180/agent-ai-backend/swagger-ui.html
+- **Health Check**: http://localhost:8180/agent-ai-backend/actuator/health
+- **Base de datos PostgreSQL**: localhost:25432
 
-***
+## Variables de Entorno
 
-# Editing this README
+El archivo `env.docker` contiene todas las variables necesarias. Puedes modificarlo según tus necesidades:
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+```env
+# Base de datos
+POSTGRES_DB=chatbotia
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=masterylas20
+POSTGRES_PORT=25432
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+# Aplicación
+APP_PORT=8180
+SPRING_PROFILES_ACTIVE=docker
 
-## Name
-Choose a self-explaining name for your project.
+# OpenAI
+OPENAI_API_KEY=tu-api-key-aqui
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+# WhatsApp (opcional)
+META_WHATSAPP_ACCESS_TOKEN=
+META_WHATSAPP_PHONE_NUMBER_ID=
+TWILIO_ACCOUNT_SID=
+TWILIO_AUTH_TOKEN=
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+# wwebjs
+WWEBJS_BASE_URL=http://localhost:8085
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+## Características del Setup
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### Dockerfile Optimizado
+- Multi-stage build para reducir tamaño de imagen
+- Usuario no-root para seguridad
+- Health check integrado
+- Configuración JVM optimizada para contenedores
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+### Docker Compose Completo
+- Base de datos PostgreSQL con pgvector
+- Health checks para dependencias
+- Variables de entorno configurables
+- Volúmenes persistentes para datos
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+### Configuración Flexible
+- Variables de entorno con valores por defecto
+- Perfil Docker específico
+- Configuración separada para desarrollo y producción
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## Troubleshooting
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+### Problemas Comunes
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+1. **Puerto ocupado**: Cambia `APP_PORT` en `env.docker`
+2. **Base de datos no conecta**: Verifica `POSTGRES_HOST` y `POSTGRES_PORT`
+3. **API Key inválida**: Actualiza `OPENAI_API_KEY` en `env.docker`
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### Logs y Debugging
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+```bash
+# Ver logs de todos los servicios
+docker-compose -f docker-compose-db.yml logs -f
 
-## License
-For open source projects, say how it is licensed.
+# Ver logs de un servicio específico
+docker-compose -f docker-compose-db.yml logs -f app
+docker-compose -f docker-compose-db.yml logs -f db
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+# Entrar al contenedor de la aplicación
+docker-compose -f docker-compose-db.yml exec app sh
+```
+
+### Limpieza Completa
+
+```bash
+# Detener y eliminar contenedores, redes y volúmenes
+docker-compose -f docker-compose-db.yml down -v
+
+# Eliminar imágenes
+docker-compose -f docker-compose-db.yml down --rmi all
+```
