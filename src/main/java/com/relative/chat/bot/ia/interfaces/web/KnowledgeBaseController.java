@@ -279,7 +279,7 @@ public class KnowledgeBaseController {
     })
     @PostMapping("/{kbId}/search")
     public ResponseEntity<Map<String, Object>> search(
-            @Parameter(description = "UUID del Knowledge Base", required = true, example = "550e8400-e29b-41d4-a716-446655440000")
+            @Parameter(description = "UUID del Knowledge Base", required = true, example = "b7b0a4d7-744b-4bd7-aae9-1ae0be626e7c")
             @PathVariable String kbId,
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
                 description = "Consulta de búsqueda",

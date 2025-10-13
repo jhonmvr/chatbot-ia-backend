@@ -2,6 +2,8 @@ package com.relative.chat.bot.ia.infrastructure.adapters.in.web;
 
 import com.relative.chat.bot.ia.application.dto.MessageCommand;
 import com.relative.chat.bot.ia.application.usecases.ReceiveWhatsAppMessage;
+import com.relative.chat.bot.ia.domain.identity.Client;
+import com.relative.chat.bot.ia.domain.ports.identity.ClientPhoneRepository;
 import com.relative.chat.bot.ia.domain.types.Channel;
 import io.swagger.v3.oas.annotations.Hidden;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Webhook para recibir notificaciones de Meta WhatsApp Business API
@@ -35,6 +38,7 @@ import java.util.Map;
 public class MetaWhatsAppWebhookController {
     
     private final ReceiveWhatsAppMessage receiveWhatsAppMessage;
+    private final ClientPhoneRepository clientPhoneRepository;
     
     @Value("${app.whatsapp.meta.webhook-verify-token:}")
     private String webhookVerifyToken;
@@ -215,7 +219,8 @@ public class MetaWhatsAppWebhookController {
         String from = (String) message.get("from");
         String type = (String) message.get("type");
         
-        log.info("Mensaje recibido - ID: {}, From: {}, Type: {}", messageId, from, type);
+        log.info("Mensaje recibido - ID: {}, From: {}, Type: {}, PhoneNumberId: {}", 
+                 messageId, from, type, phoneNumberId);
         
         // Por ahora solo procesamos mensajes de texto
         if (!"text".equals(type)) {
@@ -237,14 +242,27 @@ public class MetaWhatsAppWebhookController {
             return;
         }
         
+        // 🔑 CLAVE: Resolver el cliente por el phoneNumberId de Meta
+        Optional<Client> clientOpt = resolveClient(phoneNumberId);
+        
+        if (clientOpt.isEmpty()) {
+            log.error("❌ No se pudo identificar el cliente para phoneNumberId: {}. " +
+                      "Verifica que exista un registro en client_phone con provider_sid='{}' y provider='META'",
+                      phoneNumberId, phoneNumberId);
+            return;
+        }
+        
+        Client client = clientOpt.get();
+        log.info("✅ Cliente identificado: {} (code: {})", client.name(), client.code());
+        
         // Obtener nombre del contacto si está disponible
         String displayName = from; // Por defecto, usar el número
         
         try {
-            // Crear comando de mensaje con la estructura correcta
+            // Crear comando de mensaje con el clientCode resuelto
             MessageCommand command = new MessageCommand(
-                    null,          // clientCode - se resolverá por el phoneNumberId
-                    phoneNumberId, // phoneNumber - nuestro número de WhatsApp Business
+                    client.code(), // ✅ clientCode resuelto desde la BD
+                    phoneNumberId, // phoneNumber - nuestro número de WhatsApp Business (phone_number_id de Meta)
                     from,          // contactPhone - número del usuario que escribe
                     displayName,   // contactName
                     Channel.WHATSAPP,
@@ -256,10 +274,32 @@ public class MetaWhatsAppWebhookController {
             // Procesar el mensaje
             receiveWhatsAppMessage.handle(command);
             
-            log.info("Mensaje procesado exitosamente: {}", messageId);
+            log.info("✅ Mensaje procesado exitosamente: {}", messageId);
             
         } catch (Exception e) {
-            log.error("Error procesando mensaje {}: {}", messageId, e.getMessage(), e);
+            log.error("❌ Error procesando mensaje {}: {}", messageId, e.getMessage(), e);
         }
+    }
+    
+    /**
+     * Resuelve el cliente basándose en el phone_number_id de Meta WhatsApp
+     * 
+     * El phoneNumberId es el identificador único que Meta asigna a cada número de WhatsApp Business.
+     * Este valor debe estar almacenado en la columna provider_sid de la tabla client_phone.
+     * 
+     * @param phoneNumberId El phone_number_id de Meta
+     * @return El cliente dueño de ese número de WhatsApp, o Optional.empty() si no se encuentra
+     */
+    @Hidden
+    private Optional<Client> resolveClient(String phoneNumberId) {
+        if (phoneNumberId == null || phoneNumberId.isBlank()) {
+            log.warn("phoneNumberId es null o vacío");
+            return Optional.empty();
+        }
+        
+        log.debug("Buscando cliente con phoneNumberId: {}", phoneNumberId);
+        
+        // Buscar en la tabla client_phone por provider_sid='phoneNumberId' y provider='META'
+        return clientPhoneRepository.findClientByProviderSid(phoneNumberId, "META");
     }
 }

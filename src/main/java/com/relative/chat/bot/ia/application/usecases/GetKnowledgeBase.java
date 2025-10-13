@@ -38,10 +38,7 @@ public class GetKnowledgeBase {
      * @return Lista de KBs del cliente
      */
     public List<Kb> listByClient(UuidId<Client> clientId) {
-        // Nota: Necesitarías agregar este método al KbRepository
-        // Por ahora retornamos lista vacía
-        log.warn("listByClient no implementado completamente en KbRepository");
-        return List.of();
+        return kbRepository.findByClientId(clientId);
     }
 }
 

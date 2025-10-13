@@ -9,27 +9,30 @@ spring:
   application:
     name: chat.bot.ia
   jpa:
+    show-sql: false
     properties:
       hibernate.default_schema: chatbotia
+      hibernate.format_sql: false   # formatea el SQL
+      hibernate.highlight_sql: false
   datasource:
     url: jdbc:postgresql://localhost:25432/chatbotia
     username: postgres
     password: masterylas20
   ai:
     openai:
-      api-key: sk-asdasdasdasdasd    # usa variable de entorno
+      api-key: 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
       # opcional: el modelo por defecto
       chat:
         options:
           model: gpt-4o-mini
       embedding:
         options:
-          model: text-embedding-3-large
+          model: text-embedding-3-small
     vectorstore:
       pgvector:
-        index-type: HNSW
+        index-type: IVFFLAT
         distance-type: COSINE_DISTANCE
-        dimensions: 3072
+        dimensions: 1536
         max-document-batch-size: 10000 # Optional: Maximum number of documents per batch
   
   liquibase:
@@ -42,6 +45,15 @@ logging:
     liquibase: DEBUG
     liquibase.lockservice: DEBUG
     liquibase.changelog: DEBUG
+    # SQL generado por Hibernate
+    org.hibernate.SQL: error
+
+    # Parámetros bind (Hibernate 6+)
+    org.hibernate.orm.jdbc.bind: error
+    org.hibernate.orm.jdbc.extract: error
+
+    # (opcional) conexiones HikariCP
+    com.zaxxer.hikari: INFO
 
 # Configuración de Swagger/OpenAPI
 springdoc:
@@ -69,16 +81,35 @@ app:
     
     openai:
       api-url: https://api.openai.com
-      api-key: ${OPENAI_API_KEY:sk-test-key}
-      timeout: 60
+      api-key: sk-proj-39NcM-pmr5LWTVoXcUp4K_ZKisCe-1aIzwtcYiho6ORcDVzvD6KPXD-iL6Wxhz9FvrYh9HT3BlbkFJi4AanuSmGwSdrzrnXNmsSv1PFEGIV9bbT_Mod6gEnm3P02sIoMysNN3Sm6_A9fBPlxwL8yuDkA
+      timeout: 180
+      max-buffer-size: 10485760  # 10MB - Límite del buffer para respuestas grandes (embeddings batch)
+      
+      # Configuración de Connection Pool
+      connection:
+        max-connections: 100              # Máximo número de conexiones simultáneas
+        pending-acquire-timeout: 45       # Timeout en segundos para adquirir una conexión del pool
+        max-idle-time: 20                 # Tiempo máximo en segundos que una conexión puede estar idle antes de cerrarse
+        max-life-time: 60                 # Tiempo máximo de vida de una conexión en segundos
+        eviction-interval: 30             # Intervalo en segundos para limpiar conexiones idle
+      
+      # Configuración de Retry Logic
+      retry:
+        max-attempts: 3                   # Número máximo de reintentos ante errores transitorios
+        min-backoff: 1                    # Backoff inicial en segundos entre reintentos
+        max-backoff: 10                   # Backoff máximo en segundos entre reintentos
       
       embeddings:
-        model: text-embedding-3-large  # text-embedding-3-large | text-embedding-3-small | text-embedding-ada-002
-        dimensions: 3072               # 3072 para large, 1536 para small/ada
+        model: text-embedding-3-small  # text-embedding-3-small | text-embedding-3-large | text-embedding-ada-002
+        dimensions: 1536               # 1536 para small/ada, 3072 para large
+  
+  # Configuración de Vector Store
+  vector-store:
+    provider: pgvector  # pgvector | mock
   
   # Configuración de WhatsApp
   whatsapp:
-    provider: mock  # meta | twilio | mock
+    provider: wwebjs  # meta | twilio | mock | wwebjs
     
     meta:
       access-token: ${META_WHATSAPP_ACCESS_TOKEN:}
@@ -96,3 +127,10 @@ app:
     default-namespace: kb
     top-k-results: 5
     max-conversation-history: 10
+
+wwebjs:
+  base-url: http://localhost:8085
+  send-text-path: /api/v1/messages/text
+  send-template-path: /api/v1/messages/template
+  connect-timeout-ms: 3000
+  read-timeout-ms: 10000

@@ -34,8 +34,12 @@ app:
       timeout: 90  # Mayor timeout en producción
       
       embeddings:
-        model: text-embedding-3-large  # Mejor calidad en producción
-        dimensions: 3072
+        model: text-embedding-3-small  # Usar small por compatibilidad con IVFFlat
+        dimensions: 1536
+  
+  # Vector Store
+  vector-store:
+    provider: pgvector  # Siempre usar pgvector en producción
   
   # WhatsApp - Usar Meta en producción (recomendado)
   whatsapp:
@@ -67,13 +71,13 @@ spring.ai:
         temperature: 0.7
     embedding:
       options:
-        model: ${AI_EMBEDDING_MODEL:text-embedding-3-large}
+        model: ${AI_EMBEDDING_MODEL:text-embedding-3-small}
   
   vectorstore:
     pgvector:
-      index-type: HNSW
+      index-type: IVFFLAT
       distance-type: COSINE_DISTANCE
-      dimensions: 3072
+      dimensions: 1536
       remove-existing-vector-store-table: false
 
 logging:

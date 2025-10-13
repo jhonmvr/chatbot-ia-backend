@@ -25,17 +25,20 @@ CREATE EXTENSION IF NOT EXISTS vector;
 -- Tabla física para embeddings de pgvector (separada del core).
 -- Nota: el core ya tiene kb_chunk (texto/metadata) y kb_vector_ref (referencia portable).
 CREATE TABLE IF NOT EXISTS kb_embedding_pgvector (
-                                                     chunk_id  UUID PRIMARY KEY REFERENCES kb_chunk(id) ON DELETE CASCADE,
-    embedding vector(1536) NOT NULL,   -- Ajusta dimensión a tu modelo de embeddings
-    client_id UUID,                    -- Opcional: para filtros
-    kb_id     UUID,                    -- Opcional: para filtros
+    chunk_id   UUID PRIMARY KEY REFERENCES kb_chunk(id) ON DELETE CASCADE,
+    embedding  vector(1536) NOT NULL,  -- 1536 para text-embedding-3-small (compatible con IVFFlat)
+    client_id  UUID,                   -- Opcional: para filtros
+    kb_id      UUID,                   -- Opcional: para filtros
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
+);
 
 
--- Índice vectorial (cosine). Ajusta "lists" según el tamaño de la colección.
+-- Índice vectorial usando IVFFlat (eficiente para vectores <= 2000 dimensiones)
+-- lists = número de listas de inverted file (100 es bueno para datasets pequeños/medianos)
+-- Ajustar según el tamaño: 1-10K docs: 100 | 10-100K docs: 1000 | 100K-1M: 10000
 CREATE INDEX IF NOT EXISTS idx_kbemb_pgvector_ivf
-    ON kb_embedding_pgvector USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+    ON kb_embedding_pgvector USING ivfflat (embedding vector_cosine_ops) 
+    WITH (lists = 100);
 
 
 -- Índices por filtros típicos (opcionales pero útiles)

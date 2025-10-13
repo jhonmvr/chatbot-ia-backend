@@ -4,6 +4,7 @@ import com.relative.chat.bot.ia.application.dto.MessageCommand;
 import com.relative.chat.bot.ia.application.dto.MessageResponse;
 import com.relative.chat.bot.ia.domain.common.UuidId;
 import com.relative.chat.bot.ia.domain.identity.Client;
+import com.relative.chat.bot.ia.domain.knowledge.Kb;
 import com.relative.chat.bot.ia.domain.messaging.Contact;
 import com.relative.chat.bot.ia.domain.messaging.Conversation;
 import com.relative.chat.bot.ia.domain.messaging.Message;
@@ -15,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -32,6 +34,7 @@ public class ReceiveWhatsAppMessage {
     private final StartConversation startConversation;
     private final ProcessMessageWithAI processMessageWithAI;
     private final SendMessage sendMessage;
+    private final GetKnowledgeBase getKnowledgeBase;
     
     /**
      * Procesa un mensaje entrante de WhatsApp
@@ -82,14 +85,21 @@ public class ReceiveWhatsAppMessage {
             
             log.info("Mensaje entrante guardado: id={}", incomingMessage.id().value());
             
-            // 5. Generar respuesta con IA
+            // 5. Obtener namespace del knowledge base del cliente
+            String namespace = getKnowledgeBaseNamespace(client);
+            if (namespace == null) {
+                log.warn("Cliente {} no tiene Knowledge Base configurado", client.code());
+                return MessageResponse.error("No hay Knowledge Base configurado para este cliente");
+            }
+            
+            // 6. Generar respuesta con IA
             String aiResponse = processMessageWithAI.handle(
                     command.content(),
                     conversation.id(),
-                    "kb" // namespace del knowledge base - debería venir de configuración
+                    namespace
             );
             
-            // 6. Enviar respuesta
+            // 7. Enviar respuesta
             if (aiResponse != null && !aiResponse.isBlank()) {
                 Message responseMessage = sendMessage.handle(
                         client.id(),
@@ -125,6 +135,39 @@ public class ReceiveWhatsAppMessage {
     private Client getClient(String clientCode) {
         Optional<Client> clientOpt = clientRepository.findByCode(clientCode);
         return clientOpt.orElse(null);
+    }
+    
+    /**
+     * Obtiene el namespace del Knowledge Base del cliente
+     * Formato: "kb_<uuid>"
+     * 
+     * @param client Cliente
+     * @return Namespace del KB o null si no tiene KB
+     */
+    private String getKnowledgeBaseNamespace(Client client) {
+        try {
+            // Obtener los KBs del cliente
+            List<Kb> kbs = getKnowledgeBase.listByClient(client.id());
+            
+            if (kbs.isEmpty()) {
+                log.warn("Cliente {} no tiene Knowledge Bases", client.code());
+                return null;
+            }
+            
+            // Usar el primer KB (en el futuro se podría tener lógica para seleccionar uno específico)
+            Kb kb = kbs.get(0);
+            String namespace = "kb_" + kb.id().value();
+            
+            log.info("Usando Knowledge Base: {} (namespace: {}) para cliente {}", 
+                    kb.name(), namespace, client.code());
+            
+            return namespace;
+            
+        } catch (Exception e) {
+            log.error("Error al obtener Knowledge Base del cliente {}: {}", 
+                    client.code(), e.getMessage(), e);
+            return null;
+        }
     }
     
     /**
