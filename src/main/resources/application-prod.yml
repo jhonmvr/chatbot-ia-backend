@@ -1,0 +1,87 @@
+# Configuración para producción
+spring:
+  profiles:
+    active: prod
+  
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+  
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        default_schema: chatbotia
+  
+  liquibase:
+    enabled: true
+    contexts: prod
+    drop-first: false  # NUNCA cambiar a true en producción
+
+# Configuración del chatbot para producción
+app:
+  # AI - Usar OpenAI en producción
+  ai:
+    embeddings:
+      provider: openai
+    
+    openai:
+      api-url: https://api.openai.com
+      api-key: ${OPENAI_API_KEY}
+      timeout: 90  # Mayor timeout en producción
+      
+      embeddings:
+        model: text-embedding-3-small  # Usar small por compatibilidad con IVFFlat
+        dimensions: 1536
+  
+  # Vector Store
+  vector-store:
+    provider: pgvector  # Siempre usar pgvector en producción
+  
+  # WhatsApp - Usar Meta en producción (recomendado)
+  whatsapp:
+    provider: meta  # meta (recomendado), twilio, mock
+    
+    meta:
+      access-token: ${META_WHATSAPP_ACCESS_TOKEN}
+      phone-number-id: ${META_WHATSAPP_PHONE_NUMBER_ID}
+      webhook-verify-token: ${META_WHATSAPP_WEBHOOK_VERIFY_TOKEN}
+      api-version: ${META_WHATSAPP_API_VERSION:v21.0}
+    
+    twilio:
+      account-sid: ${TWILIO_ACCOUNT_SID:}
+      auth-token: ${TWILIO_AUTH_TOKEN:}
+      whatsapp-from: ${TWILIO_WHATSAPP_FROM:}
+  
+  # Knowledge Base
+  knowledge-base:
+    default-namespace: kb_prod
+    top-k-results: 5
+    max-conversation-history: 10
+
+spring.ai:
+  openai:
+    api-key: ${OPENAI_API_KEY}
+    chat:
+      options:
+        model: ${AI_MODEL:gpt-4o-mini}
+        temperature: 0.7
+    embedding:
+      options:
+        model: ${AI_EMBEDDING_MODEL:text-embedding-3-small}
+  
+  vectorstore:
+    pgvector:
+      index-type: IVFFLAT
+      distance-type: COSINE_DISTANCE
+      dimensions: 1536
+      remove-existing-vector-store-table: false
+
+logging:
+  level:
+    com.relative.chat.bot.ia: INFO
+    org.springframework.ai: WARN
+

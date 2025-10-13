@@ -1,0 +1,48 @@
+# Archivos de desarrollo
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Directorios de build
+target/
+.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Archivos de IDE
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos temporales
+*.tmp
+*.temp
+
+# Archivos de Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Archivos de Git
+.git/
+.gitignore
+
+# Archivos de datos de PostgreSQL
+pgdata/
+
+# Archivos de documentación
+README.md
+*.md
