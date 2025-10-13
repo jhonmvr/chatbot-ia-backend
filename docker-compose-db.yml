@@ -21,6 +21,8 @@ services:
     build: .
     ports:
       - "${APP_PORT:-8180}:8180"
+    env_file:
+      - env.docker
     environment:
       - SPRING_PROFILES_ACTIVE=docker
       - POSTGRES_DB=${POSTGRES_DB:-chatbotia}
