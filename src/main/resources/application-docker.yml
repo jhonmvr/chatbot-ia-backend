@@ -22,7 +22,7 @@ spring:
     password: ${POSTGRES_PASSWORD:masterylas20}
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY: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}
+      api-key: ${OPENAI_API_KEY}
       # opcional: el modelo por defecto
       chat:
         options:
@@ -83,7 +83,7 @@ app:
     
     openai:
       api-url: https://api.openai.com
-      api-key: ${OPENAI_API_KEY:sk-proj-39NcM-pmr5LWTVoXcUp4K_ZKisCe-1aIzwtcYiho6ORcDVzvD6KPXD-iL6Wxhz9FvrYh9HT3BlbkFJi4AanuSmGwSdrzrnXNmsSv1PFEGIV9bbT_Mod6gEnm3P02sIoMysNN3Sm6_A9fBPlxwL8yuDkA}
+      api-key: ${OPENAI_API_KEY}
       timeout: 180
       max-buffer-size: 10485760  # 10MB - Límite del buffer para respuestas grandes (embeddings batch)
       

@@ -2,10 +2,43 @@ services:
   db:
     image: pgvector/pgvector:pg17   # trae PostgreSQL 17 + pgvector preinstalado
     environment:
-      POSTGRES_PASSWORD: masterylas20
+      POSTGRES_DB: ${POSTGRES_DB:-chatbotia}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-masterylas20}
     ports:
-      - "25432:5432"
+      - "${POSTGRES_PORT:-25432}:5432"
     volumes:
-      - ./pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-chatbotia}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  app:
+    build: .
+    ports:
+      - "${APP_PORT:-8180}:8180"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - POSTGRES_DB=${POSTGRES_DB:-chatbotia}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-masterylas20}
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - META_WHATSAPP_ACCESS_TOKEN=${META_WHATSAPP_ACCESS_TOKEN:-}
+      - META_WHATSAPP_PHONE_NUMBER_ID=${META_WHATSAPP_PHONE_NUMBER_ID:-}
+      - META_WHATSAPP_WEBHOOK_VERIFY_TOKEN=${META_WHATSAPP_WEBHOOK_VERIFY_TOKEN:-my-secret-token}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_WHATSAPP_FROM=${TWILIO_WHATSAPP_FROM:-whatsapp:+14155238886}
+      - WWEBJS_BASE_URL=${WWEBJS_BASE_URL:-http://localhost:8085}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
