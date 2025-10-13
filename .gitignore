@@ -11,7 +11,7 @@ Thumbs.db
 # =========================
 .idea/
 *.iml
-out/
+
 
 # Si usas run configs exportables, puedes permitir estos (descomenta si quieres versionarlos)
 # !.idea/runConfigurations/
