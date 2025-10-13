@@ -9,6 +9,7 @@ services:
       - "${POSTGRES_PORT:-25432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./init-schema.sql:/docker-entrypoint-initdb.d/init-schema.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-chatbotia}"]
       interval: 30s
