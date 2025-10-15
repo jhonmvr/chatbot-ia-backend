@@ -136,4 +136,3 @@ wwebjs:
   send-template-path: /api/v1/messages/template
   connect-timeout-ms: 3000
   read-timeout-ms: 10000
-  read-timeout-ms: 10000
