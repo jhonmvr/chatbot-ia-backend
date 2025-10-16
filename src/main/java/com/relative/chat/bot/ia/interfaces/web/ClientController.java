@@ -13,13 +13,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * API REST para gestión de clientes
@@ -253,6 +252,80 @@ public class ClientController {
             log.error("Error al obtener cliente por código: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().build();
         }
+    }
+
+    /**
+     * Obtiene todos los clientes
+     * GET /api/clients
+     */
+    @Operation(
+            summary = "Obtener todos los clientes",
+            description = "Retorna la lista completa de clientes registrados en el sistema"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lista de clientes obtenida correctamente",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                {
+                  "status": "success",
+                  "count": 2,
+                  "clients": [
+                    {
+                      "id": "123e4567-e89b-12d3-a456-426614174000",
+                      "code": "CLI-001",
+                      "name": "Empresa Demo S.A.",
+                      "status": "ACTIVE"
+                    },
+                    {
+                      "id": "223e4567-e89b-12d3-a456-426614174111",
+                      "code": "CLI-002",
+                      "name": "Comercial Andina S.A.",
+                      "status": "INACTIVE"
+                    }
+                  ]
+                }
+                """)
+                    )
+            ),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> getAllClients() {
+        try {
+            List<Client> clients = clientRepository.findAll();
+
+            List<Map<String, Object>> clientsDto = clients.stream()
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "clients", clientsDto,
+                    "count", clientsDto.size()
+            ));
+
+        } catch (Exception e) {
+            log.error("Error al obtener la lista de clientes: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Convierte un Client del dominio a DTO
+     */
+    private Map<String, Object> toDto(Client client) {
+        Map<String, Object> dto = new HashMap<>();
+        dto.put("id", client.id().value().toString());
+        dto.put("code", client.code());
+        dto.put("name", client.name());
+        dto.put("status", client.status().name());
+        return dto;
     }
 }
 

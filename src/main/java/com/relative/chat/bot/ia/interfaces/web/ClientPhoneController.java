@@ -403,6 +403,74 @@ public class ClientPhoneController {
             ));
         }
     }
+
+    /**
+     * Obtiene todos los números telefónicos de clientes
+     * GET /api/client-phones
+     */
+    @Operation(
+            summary = "Obtener todos los números telefónicos",
+            description = "Retorna la lista completa de números telefónicos registrados en el sistema"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lista de números telefónicos obtenida correctamente",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                {
+                  "status": "success",
+                  "count": 2,
+                  "phones": [
+                    {
+                      "id": "111e4567-e89b-12d3-a456-426614174000",
+                      "clientId": "123e4567-e89b-12d3-a456-426614174000",
+                      "channel": "WHATSAPP",
+                      "e164": "+593999888777",
+                      "provider": "TWILIO",
+                      "status": "ACTIVE",
+                      "providerSid": "PN12345",
+                      "verifiedAt": "2024-10-10T15:30:00Z"
+                    },
+                    {
+                      "id": "222e4567-e89b-12d3-a456-426614174111",
+                      "clientId": "223e4567-e89b-12d3-a456-426614174111",
+                      "channel": "SMS",
+                      "e164": "+593988776655",
+                      "provider": "INFOBIP",
+                      "status": "INACTIVE"
+                    }
+                  ]
+                }
+                """)
+                    )
+            ),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> getAllClientPhones() {
+        try {
+            List<ClientPhone> phones = clientPhoneRepository.findAll();
+
+            List<Map<String, Object>> phonesDto = phones.stream()
+                    .map(this::toDto)
+                    .toList();
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "phones", phonesDto,
+                    "count", phonesDto.size()
+            ));
+
+        } catch (Exception e) {
+            log.error("Error al obtener todos los números telefónicos: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()
+            ));
+        }
+    }
     
     /**
      * Convierte un ClientPhone del dominio a DTO

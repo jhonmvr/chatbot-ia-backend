@@ -51,5 +51,10 @@ public interface ClientPhoneRepository {
      * Guarda un ClientPhone
      */
     void save(ClientPhone clientPhone);
+
+    /**
+     * Obtiene todos los registros
+     */
+    List<ClientPhone> findAll();
 }
 

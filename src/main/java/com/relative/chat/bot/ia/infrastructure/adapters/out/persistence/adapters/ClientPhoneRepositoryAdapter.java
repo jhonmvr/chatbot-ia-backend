@@ -88,5 +88,10 @@ public class ClientPhoneRepositoryAdapter implements ClientPhoneRepository {
         ClientPhoneEntity entity = ClientPhoneMapper.toEntity(clientPhone, clientEntity);
         clientPhoneJpa.save(entity);
     }
+
+    @Override
+    public List<ClientPhone> findAll() {
+        return clientPhoneJpa.findAll().stream().map(ClientPhoneMapper::toDomain).toList();
+    }
 }
 
