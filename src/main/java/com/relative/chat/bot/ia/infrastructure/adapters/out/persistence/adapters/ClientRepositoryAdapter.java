@@ -9,6 +9,7 @@ import com.relative.chat.bot.ia.infrastructure.adapters.out.persistence.jpa.repo
 import org.springframework.stereotype.Repository;
 import lombok.RequiredArgsConstructor;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -55,7 +56,12 @@ public class ClientRepositoryAdapter implements ClientRepository {
             .findFirst()
             .map(ClientRepositoryAdapter::toDomain);
     }
-    
+
+    @Override
+    public List<Client> findAll() {
+        return repo.findAll().stream().map(ClientRepositoryAdapter::toDomain).toList();
+    }
+
     @Override
     public void save(Client client) {
         repo.save(toEntity(client));
