@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -377,11 +378,14 @@ public class KnowledgeBaseController {
             
             Kb k = kb.get();
             
-            Map<String, Object> result = new HashMap<>();
+            Map<String, Object> result = this.toDto(k);
+
+            /* new HashMap<>();
             result.put("id", k.id().value().toString());
             result.put("clientId", k.clientId().value().toString());
             result.put("name", k.name());
             result.put("description", k.description());
+            */
             
             return ResponseEntity.ok(result);
             
@@ -390,4 +394,98 @@ public class KnowledgeBaseController {
             return ResponseEntity.badRequest().build();
         }
     }
+
+    /**
+     * Obtiene todas las Knowledge Bases de un cliente
+     * GET /api/knowledge-base/by-client/{clientId}
+     */
+    @Operation(
+            summary = "Obtener Knowledge Bases por cliente",
+            description = "Retorna todas las bases de conocimiento asociadas a un cliente específico"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lista de Knowledge Bases obtenida correctamente",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                {
+                  "status": "success",
+                  "count": 2,
+                  "knowledgeBases": [
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "clientId": "123e4567-e89b-12d3-a456-426614174000",
+                      "name": "Productos y Servicios",
+                      "description": "Base de conocimiento sobre nuestros productos"
+                    },
+                    {
+                      "id": "660e8400-e29b-41d4-a716-446655440111",
+                      "clientId": "123e4567-e89b-12d3-a456-426614174000",
+                      "name": "Preguntas Frecuentes",
+                      "description": "Respuestas comunes para soporte al cliente"
+                    }
+                  ]
+                }
+                """)
+                    )
+            ),
+            @ApiResponse(responseCode = "404", description = "Cliente no encontrado o sin bases de conocimiento"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
+    @GetMapping("/by-client/{clientId}")
+    public ResponseEntity<Map<String, Object>> listKnowledgeBasesByClient(
+            @Parameter(description = "UUID del cliente", required = true, example = "123e4567-e89b-12d3-a456-426614174000")
+            @PathVariable String clientId
+    ) {
+        try {
+            UuidId<Client> clientUuid = UuidId.of(UUID.fromString(clientId));
+
+            List<Kb> knowledgeBases = getKnowledgeBase.listByClient(clientUuid);
+
+            if (knowledgeBases == null || knowledgeBases.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                        "status", "error",
+                        "message", "No se encontraron bases de conocimiento para el cliente: " + clientId
+                ));
+            }
+
+            List<Map<String, Object>> kbDtos = knowledgeBases.stream()
+                    .map(this::toDto)
+                    .toList();
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "knowledgeBases", kbDtos,
+                    "count", kbDtos.size()
+            ));
+
+        } catch (IllegalArgumentException e) {
+            log.error("UUID inválido: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                    "status", "error",
+                    "message", "UUID de cliente inválido"
+            ));
+        } catch (Exception e) {
+            log.error("Error al obtener Knowledge Bases por cliente: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Convierte un Knowledge Base del dominio a DTO
+     */
+    private Map<String, Object> toDto(Kb kb) {
+        Map<String, Object> dto = new HashMap<>();
+        dto.put("id", kb.id().value().toString());
+        dto.put("clientId", kb.clientId().value().toString());
+        dto.put("name", kb.name());
+        dto.put("description", kb.description());
+        return dto;
+    }
+
 }
