@@ -40,5 +40,9 @@ public class GetKnowledgeBase {
     public List<Kb> listByClient(UuidId<Client> clientId) {
         return kbRepository.findByClientId(clientId);
     }
+
+    public List<Kb> findAll() {
+        return kbRepository.findAll();
+    }
 }
 

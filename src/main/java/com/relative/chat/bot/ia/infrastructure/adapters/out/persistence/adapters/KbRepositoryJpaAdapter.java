@@ -71,7 +71,15 @@ public class KbRepositoryJpaAdapter implements KbRepository {
             .map(KbRepositoryJpaAdapter::toDomain)
             .toList();
     }
-    
+
+    @Override
+    public List<Kb> findAll() {
+        return kbRepo.findAll()
+                .stream()
+                .map(KbRepositoryJpaAdapter::toDomain)
+                .toList();
+    }
+
     @Override
     public void save(Kb kb) {
         KbEntity e = new KbEntity();

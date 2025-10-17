@@ -477,6 +477,69 @@ public class KnowledgeBaseController {
     }
 
     /**
+     * Obtiene todas las Knowledge Bases del sistema
+     * GET /api/knowledge-base
+     */
+    @Operation(
+            summary = "Obtener todas las Knowledge Bases",
+            description = "Retorna la lista completa de bases de conocimiento registradas en el sistema"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Lista de Knowledge Bases obtenida correctamente",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                {
+                  "status": "success",
+                  "count": 2,
+                  "knowledgeBases": [
+                    {
+                      "id": "550e8400-e29b-41d4-a716-446655440000",
+                      "clientId": "123e4567-e89b-12d3-a456-426614174000",
+                      "name": "Productos y Servicios",
+                      "description": "Base de conocimiento sobre nuestros productos"
+                    },
+                    {
+                      "id": "660e8400-e29b-41d4-a716-446655440111",
+                      "clientId": "223e4567-e89b-12d3-a456-426614174111",
+                      "name": "Soporte Técnico",
+                      "description": "Artículos técnicos de resolución de problemas"
+                    }
+                  ]
+                }
+                """)
+                    )
+            ),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
+    @GetMapping
+    public ResponseEntity<Map<String, Object>> getAllKnowledgeBases() {
+        try {
+            // Delegar al Use Case
+            List<Kb> knowledgeBases = getKnowledgeBase.findAll();
+
+            List<Map<String, Object>> kbDtos = knowledgeBases.stream()
+                    .map(this::toDto)
+                    .collect(Collectors.toList());
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "knowledgeBases", kbDtos,
+                    "count", kbDtos.size()
+            ));
+
+        } catch (Exception e) {
+            log.error("Error al obtener todas las Knowledge Bases: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    /**
      * Convierte un Knowledge Base del dominio a DTO
      */
     private Map<String, Object> toDto(Kb kb) {
