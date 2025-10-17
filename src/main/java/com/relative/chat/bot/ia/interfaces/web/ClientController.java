@@ -228,7 +228,7 @@ public class ClientController {
         @ApiResponse(responseCode = "404", description = "Cliente no encontrado")
     })
     @GetMapping("/by-code/{code}")
-    public ResponseEntity<Map<String, String>> getClientByCode(
+    public ResponseEntity<Map<String, Object>> getClientByCode(
         @Parameter(description = "Código del cliente", required = true, example = "CLI-001")
         @PathVariable String code
     ) {
@@ -245,9 +245,12 @@ public class ClientController {
             response.put("code", c.code());
             response.put("name", c.name());
             response.put("status", c.status().name());
-            
-            return ResponseEntity.ok(response);
-            
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "client", response
+            ));
+
         } catch (Exception e) {
             log.error("Error al obtener cliente por código: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().build();
@@ -299,7 +302,7 @@ public class ClientController {
 
             List<Map<String, Object>> clientsDto = clients.stream()
                     .map(this::toDto)
-                    .collect(Collectors.toList());
+                    .toList();
 
             return ResponseEntity.ok(Map.of(
                     "status", "success",
