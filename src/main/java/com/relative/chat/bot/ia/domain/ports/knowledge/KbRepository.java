@@ -13,6 +13,7 @@ import java.util.Optional;
 public interface KbRepository {
     Optional<Kb> findById(UuidId<Kb> id);
     List<Kb> findByClientId(UuidId<Client> clientId);
+    List<Kb> findAll();
     void save(Kb kb);
     
     void saveDocument(KbDocument doc);
