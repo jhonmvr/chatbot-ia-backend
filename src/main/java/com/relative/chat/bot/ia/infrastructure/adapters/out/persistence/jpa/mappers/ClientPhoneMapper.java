@@ -29,7 +29,22 @@ public class ClientPhoneMapper {
             entity.getProvider(),
             entity.getProviderSid(),  // phone_number_id de Meta, etc.
             entity.getIsActive() ? EntityStatus.ACTIVE : EntityStatus.INACTIVE,
-            entity.getCreatedAt() != null ? entity.getCreatedAt().toInstant() : null
+            entity.getCreatedAt() != null ? entity.getCreatedAt().toInstant() : null,
+            // Campos específicos para Meta WhatsApp
+            entity.getMetaAccessToken(),
+            entity.getMetaPhoneNumberId(),
+            entity.getMetaApiVersion(),
+            // Campos específicos para Twilio
+            entity.getTwilioAccountSid(),
+            entity.getTwilioAuthToken(),
+            // Campos específicos para WWebJs
+            entity.getWwebjsSessionId(),
+            entity.getWwebjsWebhookUrl(),
+            // Campos comunes para todos los proveedores
+            entity.getApiBaseUrl(),
+            entity.getWebhookUrl(),
+            entity.getVerifyToken(),
+            entity.getWebhookSecret()
         );
     }
     
@@ -49,6 +64,26 @@ public class ClientPhoneMapper {
         entity.setMetadata(new java.util.HashMap<>());
         entity.setCreatedAt(java.time.OffsetDateTime.now());
         entity.setUpdatedAt(java.time.OffsetDateTime.now());
+        
+        // Campos específicos para Meta WhatsApp
+        entity.setMetaAccessToken(domain.metaAccessToken());
+        entity.setMetaPhoneNumberId(domain.metaPhoneNumberId());
+        entity.setMetaApiVersion(domain.metaApiVersion());
+        
+        // Campos específicos para Twilio
+        entity.setTwilioAccountSid(domain.twilioAccountSid());
+        entity.setTwilioAuthToken(domain.twilioAuthToken());
+        
+        // Campos específicos para WWebJs
+        entity.setWwebjsSessionId(domain.wwebjsSessionId());
+        entity.setWwebjsWebhookUrl(domain.wwebjsWebhookUrl());
+        
+        // Campos comunes para todos los proveedores
+        entity.setApiBaseUrl(domain.apiBaseUrl());
+        entity.setWebhookUrl(domain.webhookUrl());
+        entity.setVerifyToken(domain.verifyToken());
+        entity.setWebhookSecret(domain.webhookSecret());
+        
         return entity;
     }
 }

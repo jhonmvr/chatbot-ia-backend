@@ -7,6 +7,7 @@ import com.relative.chat.bot.ia.domain.messaging.ClientPhone;
 import com.relative.chat.bot.ia.domain.messaging.Contact;
 import com.relative.chat.bot.ia.domain.messaging.Conversation;
 import com.relative.chat.bot.ia.domain.messaging.Message;
+import com.relative.chat.bot.ia.domain.ports.identity.ClientPhoneRepository;
 import com.relative.chat.bot.ia.domain.ports.messaging.MessageRepository;
 import com.relative.chat.bot.ia.domain.types.Channel;
 import com.relative.chat.bot.ia.domain.types.Direction;
@@ -27,6 +28,7 @@ public class SendMessage {
     
     private final MessageRepository messageRepository;
     private final WhatsAppService whatsAppService;
+    private final ClientPhoneRepository clientPhoneRepository;
     
     /**
      * Envía un mensaje al contacto
@@ -68,7 +70,10 @@ public class SendMessage {
         try {
             // Enviar a través del servicio externo
             if (channel == Channel.WHATSAPP && whatsAppService != null) {
-                String externalId = whatsAppService.sendMessage(fromNumber, toNumber, content);
+                // Determinar el número de origen basándose en la configuración del cliente
+                String actualFromNumber = determineFromNumber(clientId, phoneId, fromNumber);
+                
+                String externalId = whatsAppService.sendMessage(actualFromNumber, toNumber, content);
                 message.markSent(Instant.now(), externalId);
                 log.info("Mensaje enviado exitosamente. ID externo: {}", externalId);
             }
@@ -81,6 +86,45 @@ public class SendMessage {
         messageRepository.save(message);
         
         return message;
+    }
+    
+    /**
+     * Determina el número de origen para enviar el mensaje
+     * 
+     * @param clientId ID del cliente
+     * @param phoneId ID del teléfono (opcional)
+     * @param fromNumber Número de origen proporcionado (opcional)
+     * @return Número de origen a usar
+     */
+    private String determineFromNumber(UuidId<Client> clientId, UuidId<ClientPhone> phoneId, String fromNumber) {
+        // Si se proporciona un phoneId específico, usarlo
+        if (phoneId != null) {
+            return clientPhoneRepository.findById(phoneId)
+                    .map(phone -> {
+                        // Para Meta, usar el phone_number_id si está disponible
+                        if ("META".equalsIgnoreCase(phone.provider()) && phone.metaPhoneNumberIdOpt().isPresent()) {
+                            return phone.metaPhoneNumberIdOpt().get();
+                        }
+                        // Para otros proveedores, usar el provider_sid o el número E164
+                        return phone.providerSidOpt().orElse(phone.phone().value());
+                    })
+                    .orElse(fromNumber);
+        }
+        
+        // Si no hay phoneId, buscar el teléfono por defecto del cliente
+        return clientPhoneRepository.findByClient(clientId)
+                .stream()
+                .filter(phone -> phone.status() == com.relative.chat.bot.ia.domain.types.EntityStatus.ACTIVE)
+                .findFirst()
+                .map(phone -> {
+                    // Para Meta, usar el phone_number_id si está disponible
+                    if ("META".equalsIgnoreCase(phone.provider()) && phone.metaPhoneNumberIdOpt().isPresent()) {
+                        return phone.metaPhoneNumberIdOpt().get();
+                    }
+                    // Para otros proveedores, usar el provider_sid o el número E164
+                    return phone.providerSidOpt().orElse(phone.phone().value());
+                })
+                .orElse(fromNumber); // Fallback al número proporcionado
     }
 }
 

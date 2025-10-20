@@ -15,7 +15,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -39,9 +38,6 @@ public class MetaWhatsAppWebhookController {
     
     private final ReceiveWhatsAppMessage receiveWhatsAppMessage;
     private final ClientPhoneRepository clientPhoneRepository;
-    
-    @Value("${app.whatsapp.meta.webhook-verify-token:}")
-    private String webhookVerifyToken;
     
     /**
      * Endpoint de verificación del webhook (GET)
@@ -70,12 +66,22 @@ public class MetaWhatsAppWebhookController {
     ) {
         log.info("Verificación de webhook recibida: mode={}, token={}", mode, token);
         
-        if ("subscribe".equals(mode) && webhookVerifyToken.equals(token)) {
+        if (!"subscribe".equals(mode)) {
+            log.warn("Modo de verificación inválido: {}", mode);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Forbidden");
+        }
+        
+        // Buscar configuración de Meta WhatsApp que tenga el token de verificación
+        boolean tokenValid = clientPhoneRepository.findAll()
+                .stream()
+                .filter(phone -> "META".equalsIgnoreCase(phone.provider()))
+                .anyMatch(phone -> token != null && token.equals(phone.verifyTokenOpt().orElse(null)));
+        
+        if (tokenValid) {
             log.info("Webhook verificado exitosamente");
             return ResponseEntity.ok(challenge);
         } else {
-            log.warn("Verificación de webhook fallida. Token esperado: {}, recibido: {}", 
-                    webhookVerifyToken, token);
+            log.warn("Verificación de webhook fallida. Token recibido: {}", token);
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Forbidden");
         }
     }
