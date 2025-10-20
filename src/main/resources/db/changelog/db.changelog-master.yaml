@@ -23,3 +23,19 @@ databaseChangeLog:
         - sql:
             sql: DROP TABLE IF EXISTS public.vector_store CASCADE;
 
+  - changeSet:
+      id: 3
+      author: system
+      changes:
+        - sqlFile:
+            path: classpath:db/migration/V3__add_whatsapp_provider_fields.sql
+            splitStatements: false
+            stripComments: false
+      rollback:
+        - sql:
+            sql: ALTER TABLE chatbotia.client_phone DROP COLUMN IF EXISTS wwebjs_session_id;
+            sql: ALTER TABLE chatbotia.client_phone DROP COLUMN IF EXISTS wwebjs_webhook_url;
+            sql: ALTER TABLE chatbotia.client_phone DROP COLUMN IF EXISTS api_base_url;
+            sql: ALTER TABLE chatbotia.client_phone DROP COLUMN IF EXISTS webhook_url;
+            sql: ALTER TABLE chatbotia.client_phone DROP COLUMN IF EXISTS verify_token;
+

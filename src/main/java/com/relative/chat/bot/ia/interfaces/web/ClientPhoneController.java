@@ -134,7 +134,22 @@ public class ClientPhoneController {
                 provider,
                 providerSid,  // phone_number_id de Meta, SID de Twilio, etc.
                 isActive ? EntityStatus.ACTIVE : EntityStatus.INACTIVE,
-                null // verifiedAt
+                null, // verifiedAt
+                // Campos específicos para Meta WhatsApp
+                (String) request.get("metaAccessToken"),
+                (String) request.get("metaPhoneNumberId"),
+                (String) request.get("metaApiVersion"),
+                // Campos específicos para Twilio
+                (String) request.get("twilioAccountSid"),
+                (String) request.get("twilioAuthToken"),
+                // Campos específicos para WWebJs
+                (String) request.get("wwebjsSessionId"),
+                (String) request.get("wwebjsWebhookUrl"),
+                // Campos comunes para todos los proveedores
+                (String) request.get("apiBaseUrl"),
+                (String) request.get("webhookUrl"),
+                (String) request.get("verifyToken"),
+                (String) request.get("webhookSecret")
             );
             
             // Guardar
