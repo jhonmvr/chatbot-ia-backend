@@ -29,10 +29,10 @@ public class OpenApiConfig {
                                 .url("https://www.apache.org/licenses/LICENSE-2.0.html")))
                 .servers(List.of(
                         new Server()
-                                .url("http://localhost:8080")
+                                .url("http://localhost:8180/agent-ai-backend")
                                 .description("Servidor de Desarrollo"),
                         new Server()
-                                .url("https://api.chatbot.com")
+                                .url("https://service.relative-engine.com:28888/agent-ai-backend")
                                 .description("Servidor de Producción")
                 ));
     }

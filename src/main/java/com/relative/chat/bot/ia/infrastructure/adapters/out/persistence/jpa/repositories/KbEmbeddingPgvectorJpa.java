@@ -90,5 +90,86 @@ public interface KbEmbeddingPgvectorJpa extends JpaRepository<KbEmbeddingPgvecto
      * Contar embeddings por KB
      */
     long countByKbId(UUID kbId);
+
+
+    /**
+     * Top-K con UMBRAL por distancia (cosine distance). Devuelve vacío si nada pasa el umbral.
+     */
+    @Query(value = """
+        SELECT sub.chunk_id, sub.distance
+        FROM (
+            SELECT chunk_id, (embedding <=> CAST(:embedding AS vector)) AS distance
+            FROM chatbotia.kb_embedding_pgvector
+        ) sub
+        WHERE sub.distance <= :maxDistance
+        ORDER BY sub.distance ASC
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<Object[]> findNNWithMaxDistance(
+            @Param("embedding") String embedding,
+            @Param("maxDistance") double maxDistance,
+            @Param("limit") int limit
+    );
+
+    /**
+     * Top-K con UMBRAL por similitud (cosine similarity = 1 - distance).
+     */
+    @Query(value = """
+        SELECT sub.chunk_id, sub.distance
+        FROM (
+            SELECT chunk_id, (embedding <=> CAST(:embedding AS vector)) AS distance
+            FROM chatbotia.kb_embedding_pgvector
+        ) sub
+        WHERE (1 - sub.distance) >= :minSimilarity
+        ORDER BY sub.distance ASC
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<Object[]> findNNWithMinSimilarity(
+            @Param("embedding") String embedding,
+            @Param("minSimilarity") double minSimilarity,
+            @Param("limit") int limit
+    );
+
+    /**
+     * Con filtro por KB + umbral de similitud.
+     */
+    @Query(value = """
+        SELECT sub.chunk_id, sub.distance
+        FROM (
+            SELECT chunk_id, (embedding <=> CAST(:embedding AS vector)) AS distance
+            FROM chatbotia.kb_embedding_pgvector
+            WHERE kb_id = :kbId
+        ) sub
+        WHERE (1 - sub.distance) >= :minSimilarity
+        ORDER BY sub.distance ASC
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<Object[]> findNNByKbWithMinSimilarity(
+            @Param("embedding") String embedding,
+            @Param("kbId") UUID kbId,
+            @Param("minSimilarity") double minSimilarity,
+            @Param("limit") int limit
+    );
+
+    /**
+     * Con filtro por Cliente + umbral de similitud.
+     */
+    @Query(value = """
+        SELECT sub.chunk_id, sub.distance
+        FROM (
+            SELECT chunk_id, (embedding <=> CAST(:embedding AS vector)) AS distance
+            FROM chatbotia.kb_embedding_pgvector
+            WHERE client_id = :clientId
+        ) sub
+        WHERE (1 - sub.distance) >= :minSimilarity
+        ORDER BY sub.distance ASC
+        LIMIT :limit
+        """, nativeQuery = true)
+    List<Object[]> findNNByClientWithMinSimilarity(
+            @Param("embedding") String embedding,
+            @Param("clientId") UUID clientId,
+            @Param("minSimilarity") double minSimilarity,
+            @Param("limit") int limit
+    );
 }
 
