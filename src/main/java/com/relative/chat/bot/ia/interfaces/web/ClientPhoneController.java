@@ -371,6 +371,147 @@ public class ClientPhoneController {
     }
     
     /**
+     * Actualizar un número de WhatsApp
+     * PUT /api/client-phones/{id}
+     */
+    @Operation(
+        summary = "Actualizar configuración de un número de WhatsApp",
+        description = "Actualiza la configuración de un número de WhatsApp existente, incluyendo credenciales de proveedores"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Número actualizado exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "phoneId": "550e8400-e29b-41d4-a716-446655440000",
+                      "message": "Número de WhatsApp actualizado exitosamente"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Datos inválidos",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "Datos de actualización inválidos"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "404", description = "Número no encontrado")
+    })
+    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> updateClientPhone(
+        @Parameter(description = "UUID del número de WhatsApp a actualizar", required = true)
+        @PathVariable String id,
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Datos a actualizar del número de WhatsApp",
+            required = true,
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "provider": "META",
+                      "providerSid": "123456789012345",
+                      "isActive": true,
+                      "metaAccessToken": "EAAxxxxxxxxxxxx",
+                      "metaPhoneNumberId": "123456789012345",
+                      "metaApiVersion": "v21.0",
+                      "twilioAccountSid": "ACxxxxxxxxxxxx",
+                      "twilioAuthToken": "xxxxxxxxxxxx",
+                      "wwebjsSessionId": "session_123",
+                      "wwebjsWebhookUrl": "https://api.example.com/webhook",
+                      "apiBaseUrl": "https://graph.facebook.com",
+                      "webhookUrl": "https://mi-app.com/webhooks/whatsapp/meta",
+                      "verifyToken": "mi_token_secreto",
+                      "webhookSecret": "mi_secreto_webhook"
+                    }
+                    """)
+            )
+        )
+        @RequestBody Map<String, Object> request
+    ) {
+        try {
+            // Buscar el número existente
+            Optional<ClientPhone> existingPhoneOpt = clientPhoneRepository.findById(UuidId.of(UUID.fromString(id)));
+            
+            if (existingPhoneOpt.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "status", "error",
+                    "message", "Número no encontrado: " + id
+                ));
+            }
+            
+            ClientPhone existingPhone = existingPhoneOpt.get();
+            
+            // Crear nuevo ClientPhone con los datos actualizados
+            // Mantener los campos que no se están actualizando
+            ClientPhone updatedPhone = new ClientPhone(
+                existingPhone.id(), // Mantener el mismo ID
+                existingPhone.clientId(), // Mantener el mismo cliente
+                existingPhone.phone(), // Mantener el mismo número
+                existingPhone.channel(), // Mantener el mismo canal
+                // Campos actualizables
+                (String) request.getOrDefault("provider", existingPhone.provider()),
+                (String) request.getOrDefault("providerSid", existingPhone.providerSid()),
+                // Status actualizable
+                request.containsKey("isActive") ? 
+                    ((Boolean) request.get("isActive") ? EntityStatus.ACTIVE : EntityStatus.INACTIVE) : 
+                    existingPhone.status(),
+                existingPhone.verifiedAt(), // Mantener verifiedAt
+                // Campos específicos para Meta WhatsApp
+                (String) request.getOrDefault("metaAccessToken", existingPhone.metaAccessToken()),
+                (String) request.getOrDefault("metaPhoneNumberId", existingPhone.metaPhoneNumberId()),
+                (String) request.getOrDefault("metaApiVersion", existingPhone.metaApiVersion()),
+                // Campos específicos para Twilio
+                (String) request.getOrDefault("twilioAccountSid", existingPhone.twilioAccountSid()),
+                (String) request.getOrDefault("twilioAuthToken", existingPhone.twilioAuthToken()),
+                // Campos específicos para WWebJs
+                (String) request.getOrDefault("wwebjsSessionId", existingPhone.wwebjsSessionId()),
+                (String) request.getOrDefault("wwebjsWebhookUrl", existingPhone.wwebjsWebhookUrl()),
+                // Campos comunes para todos los proveedores
+                (String) request.getOrDefault("apiBaseUrl", existingPhone.apiBaseUrl()),
+                (String) request.getOrDefault("webhookUrl", existingPhone.webhookUrl()),
+                (String) request.getOrDefault("verifyToken", existingPhone.verifyToken()),
+                (String) request.getOrDefault("webhookSecret", existingPhone.webhookSecret())
+            );
+            
+            // Guardar la actualización
+            clientPhoneRepository.save(updatedPhone);
+            
+            log.info("Número de WhatsApp actualizado: {} para cliente {}", 
+                    updatedPhone.phone().value(), updatedPhone.clientId().value());
+            
+            return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "phoneId", updatedPhone.id().value().toString(),
+                "message", "Número de WhatsApp actualizado exitosamente"
+            ));
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Error de validación: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "status", "error",
+                "message", e.getMessage()
+            ));
+        } catch (Exception e) {
+            log.error("Error al actualizar ClientPhone: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "status", "error",
+                "message", "Error al actualizar número: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
      * Eliminar un número de WhatsApp
      * DELETE /api/client-phones/{id}
      */
@@ -499,12 +640,54 @@ public class ClientPhoneController {
         dto.put("provider", phone.provider());
         dto.put("status", phone.status().name());
         
+        // Campos opcionales básicos
         if (phone.providerSidOpt().isPresent()) {
             dto.put("providerSid", phone.providerSid());
         }
         
         if (phone.verifiedAtOpt().isPresent()) {
             dto.put("verifiedAt", phone.verifiedAtOpt().get().toString());
+        }
+        
+        // Campos específicos para Meta WhatsApp
+        if (phone.metaAccessTokenOpt().isPresent()) {
+            dto.put("metaAccessToken", phone.metaAccessToken());
+        }
+        if (phone.metaPhoneNumberIdOpt().isPresent()) {
+            dto.put("metaPhoneNumberId", phone.metaPhoneNumberId());
+        }
+        if (phone.metaApiVersion() != null) {
+            dto.put("metaApiVersion", phone.metaApiVersion());
+        }
+        
+        // Campos específicos para Twilio
+        if (phone.twilioAccountSidOpt().isPresent()) {
+            dto.put("twilioAccountSid", phone.twilioAccountSid());
+        }
+        if (phone.twilioAuthTokenOpt().isPresent()) {
+            dto.put("twilioAuthToken", phone.twilioAuthToken());
+        }
+        
+        // Campos específicos para WWebJs
+        if (phone.wwebjsSessionIdOpt().isPresent()) {
+            dto.put("wwebjsSessionId", phone.wwebjsSessionId());
+        }
+        if (phone.wwebjsWebhookUrlOpt().isPresent()) {
+            dto.put("wwebjsWebhookUrl", phone.wwebjsWebhookUrl());
+        }
+        
+        // Campos comunes para todos los proveedores
+        if (phone.apiBaseUrlOpt().isPresent()) {
+            dto.put("apiBaseUrl", phone.apiBaseUrl());
+        }
+        if (phone.webhookUrlOpt().isPresent()) {
+            dto.put("webhookUrl", phone.webhookUrl());
+        }
+        if (phone.verifyTokenOpt().isPresent()) {
+            dto.put("verifyToken", phone.verifyToken());
+        }
+        if (phone.webhookSecretOpt().isPresent()) {
+            dto.put("webhookSecret", phone.webhookSecret());
         }
         
         return dto;
