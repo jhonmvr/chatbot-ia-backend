@@ -24,18 +24,69 @@ databaseChangeLog:
             sql: DROP TABLE IF EXISTS public.vector_store CASCADE;
 
   - changeSet:
-      id: 3
+      id: 4
       author: system
       changes:
         - sqlFile:
-            path: classpath:db/migration/V3__add_whatsapp_provider_fields.sql
+            path: classpath:db/migration/V4__create_provider_config_tables.sql
             splitStatements: false
             stripComments: false
       rollback:
         - sql:
-            sql: ALTER TABLE chatbotia.client_phone DROP COLUMN IF EXISTS wwebjs_session_id;
-            sql: ALTER TABLE chatbotia.client_phone DROP COLUMN IF EXISTS wwebjs_webhook_url;
-            sql: ALTER TABLE chatbotia.client_phone DROP COLUMN IF EXISTS api_base_url;
-            sql: ALTER TABLE chatbotia.client_phone DROP COLUMN IF EXISTS webhook_url;
-            sql: ALTER TABLE chatbotia.client_phone DROP COLUMN IF EXISTS verify_token;
+            sql: DROP TABLE IF EXISTS chatbotia.client_phone_provider_config CASCADE;
+            sql: DROP TABLE IF EXISTS chatbotia.provider_config CASCADE;
 
+  - changeSet:
+      id: 5
+      author: system
+      changes:
+        - sqlFile:
+            path: classpath:db/migration/V5__create_whatsapp_templates_table.sql
+            splitStatements: false
+            stripComments: false
+      rollback:
+        - sql:
+            sql: DROP VIEW IF EXISTS whatsapp_templates_ready CASCADE;
+            sql: DROP FUNCTION IF EXISTS get_template_stats_by_client(UUID) CASCADE;
+            sql: DROP TABLE IF EXISTS chatbotia.whatsapp_templates CASCADE;
+
+  - changeSet:
+      id: 6
+      author: system
+      changes:
+        - sqlFile:
+            path: classpath:db/migration/V6__add_person_data_to_contact_table.sql
+            splitStatements: false
+            stripComments: false
+      rollback:
+        - sql:
+            sql: DROP VIEW IF EXISTS chatbotia.contacts_vip CASCADE;
+            sql: DROP VIEW IF EXISTS chatbotia.contact_stats_by_client CASCADE;
+            sql: DROP FUNCTION IF EXISTS get_contact_full_name(UUID) CASCADE;
+            sql: DROP FUNCTION IF EXISTS get_contact_full_address(UUID) CASCADE;
+            sql: ALTER TABLE chatbotia.contact DROP COLUMN IF EXISTS first_name, last_name, middle_name, title, gender, birth_date, nationality, document_type, document_number, phone_country_code, secondary_email, address_line1, address_line2, city, state_province, postal_code, country, timezone, preferred_language, company_name, job_title, department, website, linkedin_profile, twitter_handle, facebook_profile, instagram_profile, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, notes, is_vip, is_blocked, is_active, preferred_contact_method, preferred_contact_time, marketing_consent, data_processing_consent, last_contacted_at, total_interactions CASCADE;
+
+  - changeSet:
+      id: 7
+      author: system
+      changes:
+        - sqlFile:
+            path: classpath:db/migration/V7__create_categories_and_tags_tables.sql
+            splitStatements: false
+            stripComments: false
+      rollback:
+        - sql:
+            sql: DROP FUNCTION IF EXISTS get_tag_stats() CASCADE;
+            sql: DROP FUNCTION IF EXISTS get_category_stats() CASCADE;
+            sql: DROP VIEW IF EXISTS chatbotia.tags_with_contact_count CASCADE;
+            sql: DROP VIEW IF EXISTS chatbotia.categories_with_contact_count CASCADE;
+            sql: DROP TRIGGER IF EXISTS trigger_update_tag_usage_count ON chatbotia.contact_tag CASCADE;
+            sql: DROP TRIGGER IF EXISTS trigger_update_tag_updated_at ON chatbotia.tag CASCADE;
+            sql: DROP TRIGGER IF EXISTS trigger_update_category_updated_at ON chatbotia.category CASCADE;
+            sql: DROP FUNCTION IF EXISTS update_tag_usage_count() CASCADE;
+            sql: DROP FUNCTION IF EXISTS update_tag_updated_at() CASCADE;
+            sql: DROP FUNCTION IF EXISTS update_category_updated_at() CASCADE;
+            sql: DROP TABLE IF EXISTS chatbotia.contact_tag CASCADE;
+            sql: DROP TABLE IF EXISTS chatbotia.contact_category CASCADE;
+            sql: DROP TABLE IF EXISTS chatbotia.tag CASCADE;
+            sql: DROP TABLE IF EXISTS chatbotia.category CASCADE;

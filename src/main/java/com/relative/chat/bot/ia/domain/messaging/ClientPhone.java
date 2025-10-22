@@ -16,20 +16,6 @@ public record ClientPhone(
         String providerSid,  // phone_number_id de Meta, SID de Twilio, etc.
         EntityStatus status,
         Instant verifiedAt,
-        // Campos específicos para Meta WhatsApp
-        String metaAccessToken,
-        String metaPhoneNumberId,
-        String metaApiVersion,
-        // Campos específicos para Twilio
-        String twilioAccountSid,
-        String twilioAuthToken,
-        // Campos específicos para WWebJs
-        String wwebjsSessionId,
-        String wwebjsWebhookUrl,
-        // Campos comunes para todos los proveedores
-        String apiBaseUrl,
-        String webhookUrl,
-        String verifyToken,
         String webhookSecret
 ) {
     public Optional<Instant> verifiedAtOpt() {
@@ -38,50 +24,6 @@ public record ClientPhone(
     
     public Optional<String> providerSidOpt() {
         return Optional.ofNullable(providerSid);
-    }
-    
-    // Métodos de conveniencia para Meta
-    public Optional<String> metaAccessTokenOpt() {
-        return Optional.ofNullable(metaAccessToken);
-    }
-    
-    public Optional<String> metaPhoneNumberIdOpt() {
-        return Optional.ofNullable(metaPhoneNumberId);
-    }
-    
-    public String metaApiVersionOrDefault() {
-        return metaApiVersion != null ? metaApiVersion : "v21.0";
-    }
-    
-    // Métodos de conveniencia para Twilio
-    public Optional<String> twilioAccountSidOpt() {
-        return Optional.ofNullable(twilioAccountSid);
-    }
-    
-    public Optional<String> twilioAuthTokenOpt() {
-        return Optional.ofNullable(twilioAuthToken);
-    }
-    
-    // Métodos de conveniencia para WWebJs
-    public Optional<String> wwebjsSessionIdOpt() {
-        return Optional.ofNullable(wwebjsSessionId);
-    }
-    
-    public Optional<String> wwebjsWebhookUrlOpt() {
-        return Optional.ofNullable(wwebjsWebhookUrl);
-    }
-    
-    // Métodos de conveniencia para campos comunes
-    public Optional<String> apiBaseUrlOpt() {
-        return Optional.ofNullable(apiBaseUrl);
-    }
-    
-    public Optional<String> webhookUrlOpt() {
-        return Optional.ofNullable(webhookUrl);
-    }
-    
-    public Optional<String> verifyTokenOpt() {
-        return Optional.ofNullable(verifyToken);
     }
     
     public Optional<String> webhookSecretOpt() {

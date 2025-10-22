@@ -1,7 +1,8 @@
 package com.relative.chat.bot.ia.infrastructure.adapters.out.whatsapp;
 
 import com.relative.chat.bot.ia.application.ports.out.WhatsAppService;
-import com.relative.chat.bot.ia.application.services.WhatsAppProviderConfigService;
+import com.relative.chat.bot.ia.application.services.WhatsAppProviderConfigServiceV2;
+import com.relative.chat.bot.ia.domain.messaging.ClientPhone;
 import com.relative.chat.bot.ia.domain.ports.identity.ClientPhoneRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,22 +28,22 @@ import java.util.Optional;
 @ConditionalOnProperty(name = "app.whatsapp.provider", havingValue = "meta", matchIfMissing = false)
 public class MetaWhatsAppAdapter implements WhatsAppService {
     
-    private final WhatsAppProviderConfigService configService;
+    private final WhatsAppProviderConfigServiceV2 configServiceV2;
     private final ClientPhoneRepository clientPhoneRepository;
     
     @Override
     public String sendMessage(String from, String to, String message) {
         try {
-            // Obtener configuración desde la base de datos usando el número de origen
-            Optional<WhatsAppProviderConfigService.MetaWhatsAppConfig> configOpt = 
-                    getMetaConfigByFromNumber(from);
+            // Obtener configuración usando la nueva arquitectura parametrizable
+            Optional<WhatsAppProviderConfigServiceV2.ProviderConfiguration> configOpt = 
+                    getMetaConfiguration(from);
             
             if (configOpt.isEmpty()) {
                 log.error("No se encontró configuración de Meta WhatsApp para el número: {}", from);
                 throw new IllegalStateException("Configuración de Meta WhatsApp no encontrada para: " + from);
             }
             
-            WhatsAppProviderConfigService.MetaWhatsAppConfig config = configOpt.get();
+            WhatsAppProviderConfigServiceV2.ProviderConfiguration config = configOpt.get();
             
             // Crear cliente WebClient dinámicamente
             WebClient metaClient = createWebClient(config);
@@ -69,7 +70,7 @@ public class MetaWhatsAppAdapter implements WhatsAppService {
             // Enviar solicitud
             @SuppressWarnings("unchecked")
             Map<String, Object> response = metaClient.post()
-                    .uri("/{phone_number_id}/messages", config.phoneNumberId())
+                    .uri("/{phone_number_id}/messages", config.getConfigValueOrDefault("phone_number_id", ""))
                     .bodyValue(payload)
                     .retrieve()
                     .bodyToMono(Map.class)
@@ -97,16 +98,16 @@ public class MetaWhatsAppAdapter implements WhatsAppService {
     @Override
     public String sendTemplate(String from, String to, String templateId, Map<String, String> parameters) {
         try {
-            // Obtener configuración desde la base de datos usando el número de origen
-            Optional<WhatsAppProviderConfigService.MetaWhatsAppConfig> configOpt = 
-                    getMetaConfigByFromNumber(from);
+            // Obtener configuración usando la nueva arquitectura parametrizable
+            Optional<WhatsAppProviderConfigServiceV2.ProviderConfiguration> configOpt = 
+                    getMetaConfiguration(from);
             
             if (configOpt.isEmpty()) {
                 log.error("No se encontró configuración de Meta WhatsApp para el número: {}", from);
                 throw new IllegalStateException("Configuración de Meta WhatsApp no encontrada para: " + from);
             }
             
-            WhatsAppProviderConfigService.MetaWhatsAppConfig config = configOpt.get();
+            WhatsAppProviderConfigServiceV2.ProviderConfiguration config = configOpt.get();
             
             // Crear cliente WebClient dinámicamente
             WebClient metaClient = createWebClient(config);
@@ -137,7 +138,7 @@ public class MetaWhatsAppAdapter implements WhatsAppService {
             // Enviar solicitud
             @SuppressWarnings("unchecked")
             Map<String, Object> response = metaClient.post()
-                    .uri("/{phone_number_id}/messages", config.phoneNumberId())
+                    .uri("/{phone_number_id}/messages", config.getConfigValueOrDefault("phone_number_id", ""))
                     .bodyValue(payload)
                     .retrieve()
                     .bodyToMono(Map.class)
@@ -201,33 +202,32 @@ public class MetaWhatsAppAdapter implements WhatsAppService {
     }
     
     /**
-     * Obtiene la configuración de Meta WhatsApp por número de origen
+     * Obtiene la configuración de Meta WhatsApp usando la nueva arquitectura parametrizable
      * 
-     * @param fromNumber Número de origen (phone_number_id de Meta)
+     * @param fromNumber Número de origen (phone_number_id de Meta o número E164)
      * @return Configuración de Meta WhatsApp
      */
-    private Optional<WhatsAppProviderConfigService.MetaWhatsAppConfig> getMetaConfigByFromNumber(String fromNumber) {
+    private Optional<WhatsAppProviderConfigServiceV2.ProviderConfiguration> getMetaConfiguration(String fromNumber) {
         // El parámetro 'from' puede ser el phone_number_id de Meta o el número E164
         // Primero intentamos buscar por provider_sid (phone_number_id)
-        Optional<WhatsAppProviderConfigService.MetaWhatsAppConfig> configByProviderSid = 
-                configService.getMetaConfigByProviderSid(fromNumber);
+        Optional<ClientPhone> phoneByProviderSid = clientPhoneRepository.findByProviderSid(fromNumber, "META");
         
-        if (configByProviderSid.isPresent()) {
-            return configByProviderSid;
+        if (phoneByProviderSid.isPresent()) {
+            return configServiceV2.getProviderConfiguration(phoneByProviderSid.get().id(), "META");
         }
         
         // Si no se encuentra por provider_sid, buscar por número E164
-        return clientPhoneRepository.findByPhoneAndChannel(fromNumber, com.relative.chat.bot.ia.domain.types.Channel.WHATSAPP)
-                .filter(phone -> "META".equalsIgnoreCase(phone.provider()))
-                .filter(phone -> phone.metaAccessTokenOpt().isPresent())
-                .map(phone -> new WhatsAppProviderConfigService.MetaWhatsAppConfig(
-                        phone.metaAccessTokenOpt().orElse(null),
-                        phone.metaPhoneNumberIdOpt().orElse(null),
-                        phone.metaApiVersionOrDefault(),
-                        phone.apiBaseUrlOpt().orElse("https://graph.facebook.com"),
-                        phone.webhookUrlOpt().orElse(null),
-                        phone.verifyTokenOpt().orElse(null)
-                ));
+        Optional<ClientPhone> phoneByE164 = clientPhoneRepository.findByPhoneAndChannel(
+                fromNumber, 
+                com.relative.chat.bot.ia.domain.types.Channel.WHATSAPP
+        ).filter(phone -> "META".equalsIgnoreCase(phone.provider()));
+        
+        if (phoneByE164.isPresent()) {
+            return configServiceV2.getProviderConfiguration(phoneByE164.get().id(), "META");
+        }
+        
+        log.warn("No se encontró configuración de Meta WhatsApp para: {}", fromNumber);
+        return Optional.empty();
     }
     
     /**
@@ -236,16 +236,20 @@ public class MetaWhatsAppAdapter implements WhatsAppService {
      * @param config Configuración de Meta WhatsApp
      * @return Cliente WebClient configurado
      */
-    private WebClient createWebClient(WhatsAppProviderConfigService.MetaWhatsAppConfig config) {
-        if (config.accessToken() == null) {
+    private WebClient createWebClient(WhatsAppProviderConfigServiceV2.ProviderConfiguration config) {
+        String accessToken = config.getConfigValueOrDefault("access_token", "");
+        if (accessToken.isEmpty()) {
             throw new IllegalStateException("Access token de Meta WhatsApp no está configurado");
         }
         
-        String baseUrl = config.apiBaseUrl() + "/" + config.apiVersion();
+        String fullApiUrl = config.getFullApiUrl();
+        if (fullApiUrl.isEmpty()) {
+            throw new IllegalStateException("URL de API de Meta WhatsApp no está configurada");
+        }
         
         return WebClient.builder()
-                .baseUrl(baseUrl)
-                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + config.accessToken())
+                .baseUrl(fullApiUrl)
+                .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .build();
     }

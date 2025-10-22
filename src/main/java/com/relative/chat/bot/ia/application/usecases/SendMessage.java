@@ -1,6 +1,7 @@
 package com.relative.chat.bot.ia.application.usecases;
 
 import com.relative.chat.bot.ia.application.ports.out.WhatsAppService;
+import com.relative.chat.bot.ia.application.services.WhatsAppProviderConfigServiceV2;
 import com.relative.chat.bot.ia.domain.common.UuidId;
 import com.relative.chat.bot.ia.domain.identity.Client;
 import com.relative.chat.bot.ia.domain.messaging.ClientPhone;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Optional;
 
 /**
  * Caso de uso: Enviar mensaje
@@ -29,6 +31,7 @@ public class SendMessage {
     private final MessageRepository messageRepository;
     private final WhatsAppService whatsAppService;
     private final ClientPhoneRepository clientPhoneRepository;
+    private final WhatsAppProviderConfigServiceV2 configServiceV2;
     
     /**
      * Envía un mensaje al contacto
@@ -89,7 +92,7 @@ public class SendMessage {
     }
     
     /**
-     * Determina el número de origen para enviar el mensaje
+     * Determina el número de origen para enviar el mensaje usando la nueva arquitectura parametrizable
      * 
      * @param clientId ID del cliente
      * @param phoneId ID del teléfono (opcional)
@@ -99,16 +102,36 @@ public class SendMessage {
     private String determineFromNumber(UuidId<Client> clientId, UuidId<ClientPhone> phoneId, String fromNumber) {
         // Si se proporciona un phoneId específico, usarlo
         if (phoneId != null) {
-            return clientPhoneRepository.findById(phoneId)
-                    .map(phone -> {
-                        // Para Meta, usar el phone_number_id si está disponible
-                        if ("META".equalsIgnoreCase(phone.provider()) && phone.metaPhoneNumberIdOpt().isPresent()) {
-                            return phone.metaPhoneNumberIdOpt().get();
+            Optional<ClientPhone> phoneOpt = clientPhoneRepository.findById(phoneId);
+            if (phoneOpt.isPresent()) {
+                ClientPhone phone = phoneOpt.get();
+                
+                // Obtener configuración del proveedor usando la nueva arquitectura
+                Optional<WhatsAppProviderConfigServiceV2.ProviderConfiguration> configOpt = 
+                        configServiceV2.getProviderConfiguration(phone.id(), phone.provider());
+                
+                if (configOpt.isPresent()) {
+                    WhatsAppProviderConfigServiceV2.ProviderConfiguration config = configOpt.get();
+                    
+                    // Para Meta, usar el phone_number_id si está disponible
+                    if ("META".equalsIgnoreCase(phone.provider())) {
+                        String phoneNumberId = config.getConfigValueOrDefault("phone_number_id", "");
+                        if (!phoneNumberId.isEmpty()) {
+                            return phoneNumberId;
                         }
-                        // Para otros proveedores, usar el provider_sid o el número E164
-                        return phone.providerSidOpt().orElse(phone.phone().value());
-                    })
-                    .orElse(fromNumber);
+                    }
+                    
+                    // Para otros proveedores, usar el provider_sid o el número E164
+                    return phone.providerSidOpt().orElse(phone.phone().value());
+                }
+                
+                // Fallback a la lógica anterior si no hay configuración parametrizable
+                // Para Meta, usar el provider_sid como phone_number_id
+                if ("META".equalsIgnoreCase(phone.provider()) && phone.providerSidOpt().isPresent()) {
+                    return phone.providerSidOpt().get();
+                }
+                return phone.providerSidOpt().orElse(phone.phone().value());
+            }
         }
         
         // Si no hay phoneId, buscar el teléfono por defecto del cliente
@@ -117,11 +140,30 @@ public class SendMessage {
                 .filter(phone -> phone.status() == com.relative.chat.bot.ia.domain.types.EntityStatus.ACTIVE)
                 .findFirst()
                 .map(phone -> {
-                    // Para Meta, usar el phone_number_id si está disponible
-                    if ("META".equalsIgnoreCase(phone.provider()) && phone.metaPhoneNumberIdOpt().isPresent()) {
-                        return phone.metaPhoneNumberIdOpt().get();
+                    // Obtener configuración del proveedor usando la nueva arquitectura
+                    Optional<WhatsAppProviderConfigServiceV2.ProviderConfiguration> configOpt = 
+                            configServiceV2.getProviderConfiguration(phone.id(), phone.provider());
+                    
+                    if (configOpt.isPresent()) {
+                        WhatsAppProviderConfigServiceV2.ProviderConfiguration config = configOpt.get();
+                        
+                        // Para Meta, usar el phone_number_id si está disponible
+                        if ("META".equalsIgnoreCase(phone.provider())) {
+                            String phoneNumberId = config.getConfigValueOrDefault("phone_number_id", "");
+                            if (!phoneNumberId.isEmpty()) {
+                                return phoneNumberId;
+                            }
+                        }
+                        
+                        // Para otros proveedores, usar el provider_sid o el número E164
+                        return phone.providerSidOpt().orElse(phone.phone().value());
                     }
-                    // Para otros proveedores, usar el provider_sid o el número E164
+                    
+                    // Fallback a la lógica anterior si no hay configuración parametrizable
+                    // Para Meta, usar el provider_sid como phone_number_id
+                    if ("META".equalsIgnoreCase(phone.provider()) && phone.providerSidOpt().isPresent()) {
+                        return phone.providerSidOpt().get();
+                    }
                     return phone.providerSidOpt().orElse(phone.phone().value());
                 })
                 .orElse(fromNumber); // Fallback al número proporcionado

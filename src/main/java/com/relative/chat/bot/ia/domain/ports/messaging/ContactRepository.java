@@ -30,5 +30,22 @@ public interface ContactRepository {
      * Busca contactos por cliente
      */
     java.util.List<Contact> findByClient(UuidId<Client> clientId);
+    
+    /**
+     * Busca contactos por cliente (alias para compatibilidad)
+     */
+    default java.util.List<Contact> findByClientId(UuidId<Client> clientId) {
+        return findByClient(clientId);
+    }
+    
+    /**
+     * Elimina un contacto
+     */
+    void delete(UuidId<Contact> id);
+    
+    /**
+     * Obtiene todos los contactos
+     */
+    java.util.List<Contact> findAll();
 }
 

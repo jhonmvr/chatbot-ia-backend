@@ -135,20 +135,6 @@ public class ClientPhoneController {
                 providerSid,  // phone_number_id de Meta, SID de Twilio, etc.
                 isActive ? EntityStatus.ACTIVE : EntityStatus.INACTIVE,
                 null, // verifiedAt
-                // Campos específicos para Meta WhatsApp
-                (String) request.get("metaAccessToken"),
-                (String) request.get("metaPhoneNumberId"),
-                (String) request.get("metaApiVersion"),
-                // Campos específicos para Twilio
-                (String) request.get("twilioAccountSid"),
-                (String) request.get("twilioAuthToken"),
-                // Campos específicos para WWebJs
-                (String) request.get("wwebjsSessionId"),
-                (String) request.get("wwebjsWebhookUrl"),
-                // Campos comunes para todos los proveedores
-                (String) request.get("apiBaseUrl"),
-                (String) request.get("webhookUrl"),
-                (String) request.get("verifyToken"),
                 (String) request.get("webhookSecret")
             );
             
@@ -467,20 +453,6 @@ public class ClientPhoneController {
                     ((Boolean) request.get("isActive") ? EntityStatus.ACTIVE : EntityStatus.INACTIVE) : 
                     existingPhone.status(),
                 existingPhone.verifiedAt(), // Mantener verifiedAt
-                // Campos específicos para Meta WhatsApp
-                (String) request.getOrDefault("metaAccessToken", existingPhone.metaAccessToken()),
-                (String) request.getOrDefault("metaPhoneNumberId", existingPhone.metaPhoneNumberId()),
-                (String) request.getOrDefault("metaApiVersion", existingPhone.metaApiVersion()),
-                // Campos específicos para Twilio
-                (String) request.getOrDefault("twilioAccountSid", existingPhone.twilioAccountSid()),
-                (String) request.getOrDefault("twilioAuthToken", existingPhone.twilioAuthToken()),
-                // Campos específicos para WWebJs
-                (String) request.getOrDefault("wwebjsSessionId", existingPhone.wwebjsSessionId()),
-                (String) request.getOrDefault("wwebjsWebhookUrl", existingPhone.wwebjsWebhookUrl()),
-                // Campos comunes para todos los proveedores
-                (String) request.getOrDefault("apiBaseUrl", existingPhone.apiBaseUrl()),
-                (String) request.getOrDefault("webhookUrl", existingPhone.webhookUrl()),
-                (String) request.getOrDefault("verifyToken", existingPhone.verifyToken()),
                 (String) request.getOrDefault("webhookSecret", existingPhone.webhookSecret())
             );
             
@@ -649,43 +621,7 @@ public class ClientPhoneController {
             dto.put("verifiedAt", phone.verifiedAtOpt().get().toString());
         }
         
-        // Campos específicos para Meta WhatsApp
-        if (phone.metaAccessTokenOpt().isPresent()) {
-            dto.put("metaAccessToken", phone.metaAccessToken());
-        }
-        if (phone.metaPhoneNumberIdOpt().isPresent()) {
-            dto.put("metaPhoneNumberId", phone.metaPhoneNumberId());
-        }
-        if (phone.metaApiVersion() != null) {
-            dto.put("metaApiVersion", phone.metaApiVersion());
-        }
-        
-        // Campos específicos para Twilio
-        if (phone.twilioAccountSidOpt().isPresent()) {
-            dto.put("twilioAccountSid", phone.twilioAccountSid());
-        }
-        if (phone.twilioAuthTokenOpt().isPresent()) {
-            dto.put("twilioAuthToken", phone.twilioAuthToken());
-        }
-        
-        // Campos específicos para WWebJs
-        if (phone.wwebjsSessionIdOpt().isPresent()) {
-            dto.put("wwebjsSessionId", phone.wwebjsSessionId());
-        }
-        if (phone.wwebjsWebhookUrlOpt().isPresent()) {
-            dto.put("wwebjsWebhookUrl", phone.wwebjsWebhookUrl());
-        }
-        
-        // Campos comunes para todos los proveedores
-        if (phone.apiBaseUrlOpt().isPresent()) {
-            dto.put("apiBaseUrl", phone.apiBaseUrl());
-        }
-        if (phone.webhookUrlOpt().isPresent()) {
-            dto.put("webhookUrl", phone.webhookUrl());
-        }
-        if (phone.verifyTokenOpt().isPresent()) {
-            dto.put("verifyToken", phone.verifyToken());
-        }
+        // Campo webhookSecret
         if (phone.webhookSecretOpt().isPresent()) {
             dto.put("webhookSecret", phone.webhookSecret());
         }

@@ -50,5 +50,17 @@ public class ContactRepositoryAdapter implements ContactRepository {
                 .map(ContactMapper::toDomain)
                 .collect(Collectors.toList());
     }
+    
+    @Override
+    public void delete(UuidId<Contact> id) {
+        contactJpa.deleteById(id.value());
+    }
+    
+    @Override
+    public List<Contact> findAll() {
+        return contactJpa.findAll().stream()
+                .map(ContactMapper::toDomain)
+                .collect(Collectors.toList());
+    }
 }
 
