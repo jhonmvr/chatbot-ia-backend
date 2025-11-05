@@ -155,13 +155,10 @@ public class SendTemplateController {
                 ));
             }
             
-            // Crear conversación si no existe
-            UuidId<Conversation> conversationId = UuidId.newId();
-            
-            // Enviar plantilla
+            // Enviar plantilla (el caso de uso creará la conversación si no existe)
             Message message = sendTemplate.handle(
                     UuidId.of(UUID.fromString(clientId)),
-                    conversationId,
+                    null, // La conversación se crea automáticamente en el caso de uso
                     contact.id(),
                     UuidId.of(UUID.fromString(phoneId)),
                     templateName,

@@ -111,7 +111,7 @@ app:
 
   # Configuración de WhatsApp
   whatsapp:
-    provider: wwebjs  # meta | twilio | mock | wwebjs
+    provider: meta  # meta | twilio | mock | wwebjs
 
     meta:
       access-token: ${APP_WHATSAPP_META_ACCESS_TOKEN:}

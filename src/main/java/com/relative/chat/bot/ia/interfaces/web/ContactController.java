@@ -439,44 +439,81 @@ public class ContactController {
      * Buscar contactos por criterios
      * GET /api/contacts/search
      */
+    @Operation(
+        summary = "Buscar contactos",
+        description = "Busca contactos con filtros opcionales. Si no se especifican criterios, devuelve todos los contactos"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Búsqueda exitosa",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "contacts": [...],
+                      "total": 150,
+                      "page": 0,
+                      "size": 20,
+                      "totalPages": 8
+                    }
+                    """)
+            )
+        )
+    })
     @GetMapping("/search")
     public ResponseEntity<Map<String, Object>> searchContacts(
+        @Parameter(description = "Texto de búsqueda (nombre, email, teléfono)")
         @RequestParam(required = false) String query,
+        
+        @Parameter(description = "UUID del cliente para filtrar")
         @RequestParam(required = false) String clientId,
+        
+        @Parameter(description = "Filtrar por VIP")
         @RequestParam(required = false) Boolean isVip,
+        
+        @Parameter(description = "Filtrar por activo")
         @RequestParam(required = false) Boolean isActive,
+        
+        @Parameter(description = "Etiqueta para filtrar")
         @RequestParam(required = false) String tag,
+        
+        @Parameter(description = "Número de página (0-indexed)")
         @RequestParam(defaultValue = "0") int page,
+        
+        @Parameter(description = "Tamaño de página")
         @RequestParam(defaultValue = "20") int size
-    ) {
+        ) {
         try {
-            // TODO: Implementar búsqueda avanzada con filtros
-            // Por ahora devolver todos los contactos del cliente si se especifica
+            com.relative.chat.bot.ia.domain.common.UuidId<com.relative.chat.bot.ia.domain.identity.Client> clientUuidId = clientId != null ? UuidId.of(UUID.fromString(clientId)) : null;
             
-            if (clientId != null) {
-                List<Contact> contacts = contactRepository.findByClientId(UuidId.of(UUID.fromString(clientId)));
-                
-                // Aplicar filtros básicos
-                List<Contact> filteredContacts = contacts.stream()
-                    .filter(contact -> isVip == null || contact.isVip() == isVip)
-                    .filter(contact -> isActive == null || contact.isActive() == isActive)
-                    .filter(contact -> tag == null || (contact.tagNames() != null && contact.tagNames().contains(tag)))
-                    .collect(Collectors.toList());
-                
-                List<Map<String, Object>> contactDtos = filteredContacts.stream()
-                    .map(this::toBasicDto)
-                    .collect(Collectors.toList());
-                
-                return ResponseEntity.ok(Map.of(
-                    "status", "success",
-                    "contacts", contactDtos,
-                    "total", filteredContacts.size()
-                ));
-            }
+            // Buscar contactos directamente en la base de datos
+            ContactRepository.SearchResult searchResult = contactRepository.searchContacts(
+                clientUuidId,
+                query,
+                isVip,
+                isActive,
+                tag,
+                page,
+                size
+            );
+            
+            // Convertir a DTOs
+            List<Map<String, Object>> contactDtos = searchResult.contacts().stream()
+                .map(this::toBasicDto)
+                .collect(Collectors.toList());
+            
+            log.info("Búsqueda de contactos: {} contactos encontrados, página {}, tamaño {}", 
+                searchResult.total(), page, size);
             
             return ResponseEntity.ok(Map.of(
                 "status", "success",
-                "message", "Búsqueda implementada parcialmente - use clientId para filtrar"
+                "contacts", contactDtos,
+                "total", searchResult.total(),
+                "page", searchResult.page(),
+                "size", searchResult.size(),
+                "totalPages", searchResult.totalPages()
             ));
             
         } catch (Exception e) {

@@ -54,6 +54,14 @@ public interface WhatsAppTemplateRepository {
     );
     
     /**
+     * Busca plantilla por nombre y cliente (sin categoría)
+     */
+    Optional<WhatsAppTemplate> findByClientPhoneIdAndName(
+        UuidId<ClientPhone> clientPhoneId,
+        String name
+    );
+    
+    /**
      * Busca plantilla por ID de Meta
      */
     Optional<WhatsAppTemplate> findByMetaTemplateId(String metaTemplateId);

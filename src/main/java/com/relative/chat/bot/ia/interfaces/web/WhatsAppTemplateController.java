@@ -3,6 +3,7 @@ package com.relative.chat.bot.ia.interfaces.web;
 import com.relative.chat.bot.ia.application.services.WhatsAppTemplateService;
 import com.relative.chat.bot.ia.domain.common.UuidId;
 import com.relative.chat.bot.ia.domain.messaging.*;
+import com.relative.chat.bot.ia.domain.ports.messaging.WhatsAppTemplateRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -34,6 +35,7 @@ import java.util.stream.Collectors;
 public class WhatsAppTemplateController {
     
     private final WhatsAppTemplateService templateService;
+    private final WhatsAppTemplateRepository templateRepository;
     
     /**
      * Crear una nueva plantilla de WhatsApp
@@ -444,18 +446,24 @@ public class WhatsAppTemplateController {
     }
     
     /**
-     * Listar plantillas por estado
+     * Listar plantillas por estado (opcional)
      * GET /api/whatsapp-templates/status/{status}
+     * Si status es "all" o no se proporciona, devuelve todas las plantillas
      */
-    @GetMapping("/status/{status}")
+    @GetMapping(value = {"/status/{status}", "/status"})
     public ResponseEntity<Map<String, Object>> getTemplatesByStatus(
-        @Parameter(description = "Estado de la plantilla", required = true)
-        @PathVariable String status
+        @Parameter(description = "Estado de la plantilla (opcional). Use 'all' para obtener todas")
+        @PathVariable(required = false) String status
     ) {
         try {
-            List<WhatsAppTemplate> templates = templateService.getTemplatesByStatus(
-                TemplateStatus.valueOf(status)
-            );
+            List<WhatsAppTemplate> templates;
+            
+            // Si status es null, vacío o "all", obtener todas las plantillas
+            if (status == null || status.trim().isEmpty() || status.equalsIgnoreCase("all")) {
+                templates = templateRepository.findAll();
+            } else {
+                templates = templateService.getTemplatesByStatus(TemplateStatus.valueOf(status.toUpperCase()));
+            }
             
             List<Map<String, Object>> templateDtos = templates.stream()
                 .map(this::toDto)
@@ -463,9 +471,16 @@ public class WhatsAppTemplateController {
             
             return ResponseEntity.ok(Map.of(
                 "status", "success",
-                "templates", templateDtos
+                "templates", templateDtos,
+                "count", templateDtos.size()
             ));
             
+        } catch (IllegalArgumentException e) {
+            log.error("Estado inválido: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "status", "error",
+                "message", "Estado inválido: " + e.getMessage()
+            ));
         } catch (Exception e) {
             log.error("Error al obtener plantillas por estado: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
@@ -642,7 +657,12 @@ public class WhatsAppTemplateController {
                             (String) buttonMap.get("type"),
                             (String) buttonMap.get("text"),
                             (String) buttonMap.get("url"),
-                            (String) buttonMap.get("phoneNumber")
+                            (String) buttonMap.get("phoneNumber"),
+                            (String) buttonMap.get("otpType"),
+                            (String) buttonMap.get("autofillText"),
+                            (String) buttonMap.get("packageName"),
+                            (String) buttonMap.get("signatureHash"),
+                            (String) buttonMap.get("example")
                         ))
                         .collect(Collectors.toList());
                 }
@@ -660,7 +680,15 @@ public class WhatsAppTemplateController {
                     );
                 }
                 
-                return new TemplateComponent(type, text, parameters, buttons, media);
+                // Nuevos campos de TemplateComponent
+                String format = (String) componentMap.get("format");
+                Boolean addSecurityRecommendation = componentMap.get("addSecurityRecommendation") != null ?
+                    (Boolean) componentMap.get("addSecurityRecommendation") : null;
+                Integer codeExpirationMinutes = componentMap.get("codeExpirationMinutes") != null ?
+                    (Integer) componentMap.get("codeExpirationMinutes") : null;
+                
+                return new TemplateComponent(type, text, parameters, buttons, media, format,
+                    addSecurityRecommendation, codeExpirationMinutes);
             })
             .collect(Collectors.toList());
     }

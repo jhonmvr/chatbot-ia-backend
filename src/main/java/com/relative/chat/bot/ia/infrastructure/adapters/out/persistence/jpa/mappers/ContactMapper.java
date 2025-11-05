@@ -63,7 +63,7 @@ public final class ContactMapper {
                 e.getPreferredContactTime(),
                 e.getMarketingConsent(),
                 e.getDataProcessingConsent(),
-                e.getTagNames() != null ? e.getTagNames() : new ArrayList<>(),
+                new ArrayList<>(), // tagNames ya no existe, los tags se cargan de la relación many-to-many
                 e.getAttributes() != null ? e.getAttributes() : new HashMap<>(),
                 e.getLastSeenAt() != null ? e.getLastSeenAt().toInstant() : null,
                 e.getLastContactedAt() != null ? e.getLastContactedAt().toInstant() : null,
@@ -121,7 +121,7 @@ public final class ContactMapper {
         e.setPreferredContactTime(d.preferredContactTime());
         e.setMarketingConsent(d.marketingConsent());
         e.setDataProcessingConsent(d.dataProcessingConsent());
-                e.setTagNames(d.tagNames() != null ? d.tagNames() : new ArrayList<>());
+        // tagNames ya no existe, usamos la relación many-to-many con tags
         e.setAttributes(d.attributes() != null ? d.attributes() : new HashMap<>());
         e.setLastSeenAt(d.lastSeenAt() != null ? OffsetDateTime.ofInstant(d.lastSeenAt(), ZoneOffset.UTC) : null);
         e.setLastContactedAt(d.lastContactedAt() != null ? OffsetDateTime.ofInstant(d.lastContactedAt(), ZoneOffset.UTC) : null);

@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Servicio para gestión de plantillas de WhatsApp
@@ -25,6 +24,7 @@ public class WhatsAppTemplateService {
     private final WhatsAppTemplateRepository templateRepository;
     private final ClientPhoneRepository clientPhoneRepository;
     private final MetaWhatsAppTemplateApiClient metaApiClient;
+    private final WhatsAppProviderConfigServiceV2 configServiceV2;
     
     /**
      * Crea una nueva plantilla
@@ -132,10 +132,11 @@ public class WhatsAppTemplateService {
             // Obtener configuración de Meta para el cliente
             String accessToken = getMetaAccessToken(template.clientPhoneId());
             String businessAccountId = getMetaBusinessAccountId(template.clientPhoneId());
+            String apiVersion = getMetaApiVersion(template.clientPhoneId());
             
             // Crear plantilla en Meta
             MetaWhatsAppTemplateApiClient.MetaTemplateResponse response = metaApiClient
-                .createTemplate(accessToken, businessAccountId, template)
+                .createTemplate(accessToken, businessAccountId, apiVersion, template)
                 .block(); // En producción usar async
             
             if (response != null) {
@@ -175,10 +176,11 @@ public class WhatsAppTemplateService {
         try {
             // Obtener configuración de Meta
             String accessToken = getMetaAccessToken(template.clientPhoneId());
+            String apiVersion = getMetaApiVersion(template.clientPhoneId());
             
             // Obtener estado desde Meta
             MetaWhatsAppTemplateApiClient.MetaTemplateStatusResponse response = metaApiClient
-                .getTemplateStatus(accessToken, template.metaTemplateId())
+                .getTemplateStatus(accessToken, apiVersion, template.metaTemplateId())
                 .block();
             
             if (response != null) {
@@ -223,7 +225,8 @@ public class WhatsAppTemplateService {
         if (template.isSyncedWithMeta()) {
             try {
                 String accessToken = getMetaAccessToken(template.clientPhoneId());
-                metaApiClient.deleteTemplate(accessToken, template.metaTemplateId()).block();
+                String apiVersion = getMetaApiVersion(template.clientPhoneId());
+                metaApiClient.deleteTemplate(accessToken, apiVersion, template.metaTemplateId()).block();
                 log.info("Plantilla eliminada de Meta API: {}", template.metaTemplateId());
             } catch (Exception e) {
                 log.warn("No se pudo eliminar plantilla de Meta API: {}", e.getMessage());
@@ -381,29 +384,95 @@ public class WhatsAppTemplateService {
     }
     
     /**
-     * Obtiene el access token de Meta para un cliente
+     * Obtiene el access token de Meta para un cliente desde la configuración de la base de datos
      */
     private String getMetaAccessToken(UuidId<ClientPhone> clientPhoneId) {
-        // TODO: Implementar obtención de access token desde configuración de proveedor
-        // Por ahora usar variable de entorno
-        String accessToken = System.getenv("META_ACCESS_TOKEN");
-        if (accessToken == null || accessToken.isEmpty()) {
-            throw new IllegalStateException("META_ACCESS_TOKEN no configurado");
+        log.debug("Obteniendo access token de Meta para clientPhone: {}", clientPhoneId.value());
+        
+        // Obtener configuración del proveedor META desde la base de datos
+        WhatsAppProviderConfigServiceV2.ProviderConfiguration config = configServiceV2
+                .getProviderConfiguration(clientPhoneId, "META")
+                .orElseThrow(() -> new IllegalStateException(
+                        "No se encontró configuración de Meta WhatsApp para clientPhone: " + clientPhoneId.value()
+                ));
+        
+        // Extraer el access_token del map de configValues
+        String accessToken = config.getConfigValueOrDefault("access_token", "");
+        
+        if (accessToken.isEmpty()) {
+            throw new IllegalStateException(
+                    "access_token no está configurado para clientPhone: " + clientPhoneId.value()
+            );
         }
+        
+        log.debug("Access token de Meta obtenido exitosamente para clientPhone: {}", clientPhoneId.value());
         return accessToken;
     }
     
     /**
-     * Obtiene el business account ID de Meta para un cliente
+     * Obtiene el business account ID de Meta para un cliente desde la configuración de la base de datos
      */
     private String getMetaBusinessAccountId(UuidId<ClientPhone> clientPhoneId) {
-        // TODO: Implementar obtención de business account ID desde configuración de proveedor
-        // Por ahora usar variable de entorno
-        String businessAccountId = System.getenv("META_BUSINESS_ACCOUNT_ID");
-        if (businessAccountId == null || businessAccountId.isEmpty()) {
-            throw new IllegalStateException("META_BUSINESS_ACCOUNT_ID no configurado");
+        log.debug("Obteniendo business account ID de Meta para clientPhone: {}", clientPhoneId.value());
+        
+        // Obtener configuración del proveedor META desde la base de datos
+        WhatsAppProviderConfigServiceV2.ProviderConfiguration config = configServiceV2
+                .getProviderConfiguration(clientPhoneId, "META")
+                .orElseThrow(() -> new IllegalStateException(
+                        "No se encontró configuración de Meta WhatsApp para clientPhone: " + clientPhoneId.value()
+                ));
+        
+        // Intentar diferentes variantes del campo business_account_id
+        String businessAccountId = config.getConfigValueOrDefault("business_account_id", "");
+        
+        // Si no se encuentra, intentar con otras variantes comunes
+        if (businessAccountId.isEmpty()) {
+            businessAccountId = config.getConfigValueOrDefault("waba_id", "");
         }
+        if (businessAccountId.isEmpty()) {
+            businessAccountId = config.getConfigValueOrDefault("whatsapp_business_account_id", "");
+        }
+        
+        if (businessAccountId.isEmpty()) {
+            throw new IllegalStateException(
+                    "business_account_id no está configurado para clientPhone: " + clientPhoneId.value()
+            );
+        }
+        
+        log.debug("Business account ID de Meta obtenido exitosamente: {} para clientPhone: {}", 
+                businessAccountId, clientPhoneId.value());
         return businessAccountId;
+    }
+    
+    /**
+     * Obtiene la versión de la API de Meta para un cliente desde la configuración de la base de datos
+     */
+    private String getMetaApiVersion(UuidId<ClientPhone> clientPhoneId) {
+        log.debug("Obteniendo versión de API de Meta para clientPhone: {}", clientPhoneId.value());
+        
+        // Obtener configuración del proveedor META desde la base de datos
+        WhatsAppProviderConfigServiceV2.ProviderConfiguration config = configServiceV2
+                .getProviderConfiguration(clientPhoneId, "META")
+                .orElseThrow(() -> new IllegalStateException(
+                        "No se encontró configuración de Meta WhatsApp para clientPhone: " + clientPhoneId.value()
+                ));
+        
+        // Intentar obtener versión desde configValues primero
+        String apiVersion = config.getConfigValueOrDefault("api_version", "");
+        
+        // Si no está en configValues, intentar obtener del ProviderConfig
+        if (apiVersion.isEmpty()) {
+            apiVersion = config.getApiVersion();
+        }
+        
+        // Si aún no hay configuración, usar versión por defecto
+        if (apiVersion.isEmpty()) {
+            apiVersion = "v21.0";
+            log.debug("No se encontró versión de API configurada, usando versión por defecto: {}", apiVersion);
+        }
+        
+        log.debug("Versión de API de Meta obtenida: {} para clientPhone: {}", apiVersion, clientPhoneId.value());
+        return apiVersion;
     }
     
     /**

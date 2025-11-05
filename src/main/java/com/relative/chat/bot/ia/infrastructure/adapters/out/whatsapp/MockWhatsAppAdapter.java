@@ -2,7 +2,6 @@ package com.relative.chat.bot.ia.infrastructure.adapters.out.whatsapp;
 
 import com.relative.chat.bot.ia.application.ports.out.WhatsAppService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
@@ -13,7 +12,6 @@ import java.util.UUID;
  */
 @Slf4j
 @Service
-@ConditionalOnProperty(name = "app.whatsapp.provider", havingValue = "mock")
 public class MockWhatsAppAdapter implements WhatsAppService {
     
     @Override
@@ -30,13 +28,14 @@ public class MockWhatsAppAdapter implements WhatsAppService {
     }
     
     @Override
-    public String sendTemplate(String from, String to, String templateId, Map<String, String> parameters) {
+    public String sendTemplate(String from, String to, String templateId, String language, Map<String, String> parameters) {
         String mockMessageId = "mock_template_" + UUID.randomUUID().toString().substring(0, 8);
         
         log.info("📱 [MOCK] Plantilla enviada:");
         log.info("   De: {}", from);
         log.info("   A: {}", to);
         log.info("   Template ID: {}", templateId);
+        log.info("   Idioma: {}", language);
         log.info("   Parámetros: {}", parameters);
         log.info("   ID: {}", mockMessageId);
         

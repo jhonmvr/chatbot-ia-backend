@@ -62,5 +62,39 @@ public class ContactRepositoryAdapter implements ContactRepository {
                 .map(ContactMapper::toDomain)
                 .collect(Collectors.toList());
     }
+    
+    @Override
+    public ContactRepository.SearchResult searchContacts(
+            UuidId<Client> clientId,
+            String query,
+            Boolean isVip,
+            Boolean isActive,
+            String tag,
+            int page,
+            int size
+    ) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        
+        var result = contactJpa.searchContacts(
+            clientId != null ? clientId.value() : null,
+            query,
+            isVip,
+            isActive,
+            tag,
+            pageable
+        );
+        
+        List<Contact> contacts = result.getContent().stream()
+                .map(ContactMapper::toDomain)
+                .collect(Collectors.toList());
+        
+        return new ContactRepository.SearchResult(
+            contacts,
+            result.getTotalElements(),
+            page,
+            size,
+            result.getTotalPages()
+        );
+    }
 }
 

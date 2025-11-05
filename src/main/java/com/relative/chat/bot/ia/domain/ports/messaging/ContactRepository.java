@@ -47,5 +47,28 @@ public interface ContactRepository {
      * Obtiene todos los contactos
      */
     java.util.List<Contact> findAll();
+    
+    /**
+     * Búsqueda avanzada de contactos con paginación
+     */
+    SearchResult searchContacts(
+        UuidId<Client> clientId,
+        String query,
+        Boolean isVip,
+        Boolean isActive,
+        String tag,
+        int page,
+        int size
+    );
+    
+    /**
+     * Resultado de búsqueda con paginación
+     */
+    record SearchResult(
+        java.util.List<Contact> contacts,
+        long total,
+        int page,
+        int size,
+        int totalPages
+    ) {}
 }
-

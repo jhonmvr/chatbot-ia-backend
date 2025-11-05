@@ -6,7 +6,6 @@ import com.relative.chat.bot.ia.domain.messaging.ClientPhone;
 import com.relative.chat.bot.ia.domain.ports.identity.ClientPhoneRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -25,7 +24,6 @@ import java.util.Optional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "app.whatsapp.provider", havingValue = "meta", matchIfMissing = false)
 public class MetaWhatsAppAdapter implements WhatsAppService {
     
     private final WhatsAppProviderConfigServiceV2 configServiceV2;
@@ -96,7 +94,7 @@ public class MetaWhatsAppAdapter implements WhatsAppService {
     }
     
     @Override
-    public String sendTemplate(String from, String to, String templateId, Map<String, String> parameters) {
+    public String sendTemplate(String from, String to, String templateId, String language, Map<String, String> parameters) {
         try {
             // Obtener configuración usando la nueva arquitectura parametrizable
             Optional<WhatsAppProviderConfigServiceV2.ProviderConfiguration> configOpt = 
@@ -125,7 +123,7 @@ public class MetaWhatsAppAdapter implements WhatsAppService {
             // Template structure
             Map<String, Object> template = new HashMap<>();
             template.put("name", templateId);
-            template.put("language", Map.of("code", "es"));  // Español por defecto
+            template.put("language", Map.of("code", language != null && !language.isEmpty() ? language : "es_ES"));
             
             // Agregar componentes si hay parámetros
             if (parameters != null && !parameters.isEmpty()) {
@@ -149,6 +147,9 @@ public class MetaWhatsAppAdapter implements WhatsAppService {
                 List<Map<String, String>> messages = (List<Map<String, String>>) response.get("messages");
                 if (!messages.isEmpty()) {
                     String messageId = messages.get(0).get("id");
+                    String messageStatus = messages.get(0).get("message_status");
+                    if(!messageStatus.equals("accepted"))
+                        throw new RuntimeException("No se pudo enviar el mensaje");
                     log.info("Plantilla enviada exitosamente. ID: {}", messageId);
                     return messageId;
                 }

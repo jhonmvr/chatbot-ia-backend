@@ -101,7 +101,12 @@ public class WhatsAppTemplateMapper {
                             (String) buttonMap.get("type"),
                             (String) buttonMap.get("text"),
                             (String) buttonMap.get("url"),
-                            (String) buttonMap.get("phoneNumber")
+                            (String) buttonMap.get("phoneNumber"),
+                            (String) buttonMap.get("otpType"),
+                            (String) buttonMap.get("autofillText"),
+                            (String) buttonMap.get("packageName"),
+                            (String) buttonMap.get("signatureHash"),
+                            (String) buttonMap.get("example")
                         ))
                         .collect(Collectors.toList());
                 }
@@ -119,7 +124,15 @@ public class WhatsAppTemplateMapper {
                     );
                 }
                 
-                return new TemplateComponent(type, text, parameters, buttons, media);
+                // Nuevos campos de TemplateComponent
+                String format = (String) componentMap.get("format");
+                Boolean addSecurityRecommendation = componentMap.get("addSecurityRecommendation") != null ? 
+                    (Boolean) componentMap.get("addSecurityRecommendation") : null;
+                Integer codeExpirationMinutes = componentMap.get("codeExpirationMinutes") != null ? 
+                    (Integer) componentMap.get("codeExpirationMinutes") : null;
+                
+                return new TemplateComponent(type, text, parameters, buttons, media, format, 
+                    addSecurityRecommendation, codeExpirationMinutes);
             })
             .collect(Collectors.toList());
     }
@@ -171,6 +184,21 @@ public class WhatsAppTemplateMapper {
                             if (button.phoneNumber() != null) {
                                 buttonMap.put("phoneNumber", button.phoneNumber());
                             }
+                            if (button.otpType() != null) {
+                                buttonMap.put("otpType", button.otpType());
+                            }
+                            if (button.autofillText() != null) {
+                                buttonMap.put("autofillText", button.autofillText());
+                            }
+                            if (button.packageName() != null) {
+                                buttonMap.put("packageName", button.packageName());
+                            }
+                            if (button.signatureHash() != null) {
+                                buttonMap.put("signatureHash", button.signatureHash());
+                            }
+                            if (button.example() != null) {
+                                buttonMap.put("example", button.example());
+                            }
                             return buttonMap;
                         })
                         .collect(Collectors.toList());
@@ -193,6 +221,17 @@ public class WhatsAppTemplateMapper {
                         mediaMap.put("altText", component.media().altText());
                     }
                     componentMap.put("media", mediaMap);
+                }
+                
+                // Nuevos campos de TemplateComponent
+                if (component.format() != null) {
+                    componentMap.put("format", component.format());
+                }
+                if (component.addSecurityRecommendation() != null) {
+                    componentMap.put("addSecurityRecommendation", component.addSecurityRecommendation());
+                }
+                if (component.codeExpirationMinutes() != null) {
+                    componentMap.put("codeExpirationMinutes", component.codeExpirationMinutes());
                 }
                 
                 return componentMap;

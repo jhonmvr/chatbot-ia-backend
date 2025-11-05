@@ -30,8 +30,9 @@ public class MetaWhatsAppTemplateApiClient {
     /**
      * Crea una plantilla en Meta WhatsApp Business API
      */
-    public Mono<MetaTemplateResponse> createTemplate(String accessToken, String businessAccountId, WhatsAppTemplate template) {
-        log.info("Creando plantilla en Meta API: {} para business account: {}", template.name(), businessAccountId);
+    public Mono<MetaTemplateResponse> createTemplate(String accessToken, String businessAccountId, String apiVersion, WhatsAppTemplate template) {
+        log.info("Creando plantilla en Meta API: {} para business account: {} usando versión: {}", 
+                template.name(), businessAccountId, apiVersion);
         
         Map<String, Object> requestBody = buildCreateTemplateRequest(template);
         
@@ -42,20 +43,20 @@ public class MetaWhatsAppTemplateApiClient {
             .build();
         
         return webClient.post()
-            .uri("/v21.0/{businessAccountId}/message_templates", businessAccountId)
+            .uri("/{apiVersion}/{businessAccountId}/message_templates", apiVersion, businessAccountId)
             .bodyValue(requestBody)
             .retrieve()
             .bodyToMono(MetaTemplateResponse.class)
             .timeout(Duration.ofSeconds(30))
             .doOnSuccess(response -> log.info("Plantilla creada exitosamente en Meta: {}", response.id()))
-            .doOnError(error -> log.error("Error al crear plantilla en Meta: {}", error.getMessage()));
+            .onErrorMap(WebClientResponseException.class, this::parseMetaError);
     }
     
     /**
      * Obtiene el estado de una plantilla desde Meta API
      */
-    public Mono<MetaTemplateStatusResponse> getTemplateStatus(String accessToken, String templateId) {
-        log.debug("Obteniendo estado de plantilla desde Meta API: {}", templateId);
+    public Mono<MetaTemplateStatusResponse> getTemplateStatus(String accessToken, String apiVersion, String templateId) {
+        log.debug("Obteniendo estado de plantilla desde Meta API: {} usando versión: {}", templateId, apiVersion);
         
         WebClient webClient = webClientBuilder
             .baseUrl("https://graph.facebook.com")
@@ -63,18 +64,19 @@ public class MetaWhatsAppTemplateApiClient {
             .build();
         
         return webClient.get()
-            .uri("/v21.0/{templateId}?fields=status,quality_score", templateId)
+            .uri("/{apiVersion}/{templateId}?fields=status,quality_score", apiVersion, templateId)
             .retrieve()
             .bodyToMono(MetaTemplateStatusResponse.class)
             .timeout(Duration.ofSeconds(15))
-            .doOnError(error -> log.error("Error al obtener estado de plantilla {}: {}", templateId, error.getMessage()));
+            .onErrorMap(WebClientResponseException.class, this::parseMetaError);
     }
     
     /**
      * Lista todas las plantillas de una cuenta de negocio
      */
-    public Mono<MetaTemplateListResponse> listTemplates(String accessToken, String businessAccountId) {
-        log.debug("Listando plantillas desde Meta API para business account: {}", businessAccountId);
+    public Mono<MetaTemplateListResponse> listTemplates(String accessToken, String apiVersion, String businessAccountId) {
+        log.debug("Listando plantillas desde Meta API para business account: {} usando versión: {}", 
+                businessAccountId, apiVersion);
         
         WebClient webClient = webClientBuilder
             .baseUrl("https://graph.facebook.com")
@@ -82,18 +84,18 @@ public class MetaWhatsAppTemplateApiClient {
             .build();
         
         return webClient.get()
-            .uri("/v21.0/{businessAccountId}/message_templates", businessAccountId)
+            .uri("/{apiVersion}/{businessAccountId}/message_templates", apiVersion, businessAccountId)
             .retrieve()
             .bodyToMono(MetaTemplateListResponse.class)
             .timeout(Duration.ofSeconds(15))
-            .doOnError(error -> log.error("Error al listar plantillas: {}", error.getMessage()));
+            .onErrorMap(WebClientResponseException.class, this::parseMetaError);
     }
     
     /**
      * Elimina una plantilla de Meta API
      */
-    public Mono<Void> deleteTemplate(String accessToken, String templateId) {
-        log.info("Eliminando plantilla de Meta API: {}", templateId);
+    public Mono<Void> deleteTemplate(String accessToken, String apiVersion, String templateId) {
+        log.info("Eliminando plantilla de Meta API: {} usando versión: {}", templateId, apiVersion);
         
         WebClient webClient = webClientBuilder
             .baseUrl("https://graph.facebook.com")
@@ -101,12 +103,12 @@ public class MetaWhatsAppTemplateApiClient {
             .build();
         
         return webClient.delete()
-            .uri("/v21.0/{templateId}", templateId)
+            .uri("/{apiVersion}/{templateId}", apiVersion, templateId)
             .retrieve()
             .bodyToMono(Void.class)
             .timeout(Duration.ofSeconds(15))
             .doOnSuccess(response -> log.info("Plantilla eliminada exitosamente de Meta: {}", templateId))
-            .doOnError(error -> log.error("Error al eliminar plantilla {}: {}", templateId, error.getMessage()));
+            .onErrorMap(WebClientResponseException.class, this::parseMetaError);
     }
     
     /**
@@ -139,8 +141,31 @@ public class MetaWhatsAppTemplateApiClient {
         Map<String, Object> componentRequest = new HashMap<>();
         componentRequest.put("type", component.type().name().toLowerCase());
         
+        // Campo format para HEADER (TEXT, IMAGE, DOCUMENT, VIDEO, LOCATION)
+        if (component.format() != null) {
+            componentRequest.put("format", component.format());
+        }
+        
+        // Texto del componente
         if (component.text() != null) {
             componentRequest.put("text", component.text());
+            
+            // Si el texto tiene placeholders ({{variable}}), agregar ejemplo
+            if (hasPlaceholders(component.text()) && component.parameters() != null) {
+                Map<String, Object> example = buildExampleForComponent(component);
+                if (!example.isEmpty()) {
+                    componentRequest.put("example", example);
+                }
+            }
+        }
+        
+        // Campos especiales para AUTHENTICATION templates
+        if (component.addSecurityRecommendation() != null) {
+            componentRequest.put("add_security_recommendation", component.addSecurityRecommendation());
+        }
+        
+        if (component.codeExpirationMinutes() != null) {
+            componentRequest.put("code_expiration_minutes", component.codeExpirationMinutes());
         }
         
         // Construir parámetros
@@ -166,6 +191,55 @@ public class MetaWhatsAppTemplateApiClient {
         }
         
         return componentRequest;
+    }
+    
+    /**
+     * Verifica si un texto contiene placeholders
+     */
+    private boolean hasPlaceholders(String text) {
+        return text != null && text.contains("{{");
+    }
+    
+    /**
+     * Construye el objeto example para un componente basado en sus parámetros
+     */
+    private Map<String, Object> buildExampleForComponent(TemplateComponent component) {
+        Map<String, Object> example = new HashMap<>();
+        
+        if (component.parameters() == null || component.parameters().isEmpty()) {
+            return example;
+        }
+        
+        // Extraer los ejemplos de los parámetros en el orden que aparecen
+        List<String> examples = component.parameters().stream()
+            .filter(param -> param.example() != null && !param.example().isEmpty())
+            .map(ComponentParameter::example)
+            .toList();
+        
+        if (examples.isEmpty()) {
+            log.warn("El componente tiene placeholders pero no tiene ejemplos definidos");
+            return example;
+        }
+        
+        // Construir el objeto example según el tipo de componente
+        String componentType = component.type().name().toLowerCase();
+        
+        switch (componentType) {
+            case "body":
+                example.put("body_text", List.of(examples));
+                break;
+            case "header":
+                // Para HEADER, puede ser header_text o header_handle
+                example.put("header_text", List.of(examples));
+                break;
+            case "footer":
+                example.put("footer_text", List.of(examples));
+                break;
+            default:
+                log.debug("Tipo de componente {} no requiere ejemplo", componentType);
+        }
+        
+        return example;
     }
     
     /**
@@ -203,6 +277,27 @@ public class MetaWhatsAppTemplateApiClient {
             buttonRequest.put("phone_number", button.phoneNumber());
         }
         
+        // Campos para botones OTP
+        if (button.otpType() != null) {
+            buttonRequest.put("otp_type", button.otpType());
+        }
+        
+        if (button.autofillText() != null) {
+            buttonRequest.put("autofill_text", button.autofillText());
+        }
+        
+        if (button.packageName() != null) {
+            buttonRequest.put("package_name", button.packageName());
+        }
+        
+        if (button.signatureHash() != null) {
+            buttonRequest.put("signature_hash", button.signatureHash());
+        }
+        
+        if (button.example() != null) {
+            buttonRequest.put("example", List.of(button.example()));
+        }
+        
         return buttonRequest;
     }
     
@@ -233,31 +328,52 @@ public class MetaWhatsAppTemplateApiClient {
     }
     
     /**
-     * Maneja errores de la API de Meta
+     * Parsea el error de Meta API y extrae información detallada
      */
-    private Mono<MetaTemplateResponse> handleError(Throwable error) {
-        if (error instanceof WebClientResponseException webClientError) {
-            log.error("Error de Meta API - Status: {}, Body: {}", 
-                webClientError.getStatusCode(), webClientError.getResponseBodyAsString());
+    private MetaApiException parseMetaError(WebClientResponseException webClientError) {
+        log.error("Error de Meta API - Status: {}, Body: {}", 
+            webClientError.getStatusCode(), webClientError.getResponseBodyAsString());
+        
+        try {
+            String errorBody = webClientError.getResponseBodyAsString();
+            @SuppressWarnings("unchecked")
+            Map<String, Object> errorMap = objectMapper.readValue(errorBody, Map.class);
             
-            // Intentar parsear el error de Meta
-            try {
-                String errorBody = webClientError.getResponseBodyAsString();
-                Map<String, Object> errorMap = objectMapper.readValue(errorBody, Map.class);
+            // Extraer objeto error
+            @SuppressWarnings("unchecked")
+            Map<String, Object> errorObj = (Map<String, Object>) errorMap.get("error");
+            
+            if (errorObj != null) {
+                String message = (String) errorObj.get("message");
+                String errorUserMsg = (String) errorObj.get("error_user_msg");
+                String errorUserTitle = (String) errorObj.get("error_user_title");
+                String errorType = (String) errorObj.get("type");
+                Integer errorCode = (Integer) errorObj.get("code");
                 
-                return Mono.error(new MetaApiException(
+                // Usar error_user_msg como mensaje principal si está disponible
+                String finalMessage = errorUserMsg != null ? errorUserMsg : message;
+                
+                return new MetaApiException(
+                    finalMessage,
+                    webClientError.getStatusCode().value(),
+                    errorUserMsg,
+                    errorUserTitle,
+                    errorType,
+                    errorCode
+                );
+            } else {
+                return new MetaApiException(
                     "Error de Meta API: " + errorMap.get("error"),
                     webClientError.getStatusCode().value()
-                ));
-            } catch (Exception parseError) {
-                return Mono.error(new MetaApiException(
-                    "Error de Meta API: " + webClientError.getResponseBodyAsString(),
-                    webClientError.getStatusCode().value()
-                ));
+                );
             }
+        } catch (Exception parseError) {
+            log.warn("No se pudo parsear el error de Meta API: {}", parseError.getMessage());
+            return new MetaApiException(
+                "Error de Meta API: " + webClientError.getResponseBodyAsString(),
+                webClientError.getStatusCode().value()
+            );
         }
-        
-        return Mono.error(new MetaApiException("Error desconocido: " + error.getMessage(), 500));
     }
     
     /**
@@ -265,14 +381,48 @@ public class MetaWhatsAppTemplateApiClient {
      */
     public static class MetaApiException extends RuntimeException {
         private final int statusCode;
+        private final String errorUserMsg;
+        private final String errorUserTitle;
+        private final String errorType;
+        private final Integer errorCode;
         
         public MetaApiException(String message, int statusCode) {
             super(message);
             this.statusCode = statusCode;
+            this.errorUserMsg = null;
+            this.errorUserTitle = null;
+            this.errorType = null;
+            this.errorCode = null;
+        }
+        
+        public MetaApiException(String message, int statusCode, String errorUserMsg, 
+                               String errorUserTitle, String errorType, Integer errorCode) {
+            super(message);
+            this.statusCode = statusCode;
+            this.errorUserMsg = errorUserMsg;
+            this.errorUserTitle = errorUserTitle;
+            this.errorType = errorType;
+            this.errorCode = errorCode;
         }
         
         public int getStatusCode() {
             return statusCode;
+        }
+        
+        public String getErrorUserMsg() {
+            return errorUserMsg != null ? errorUserMsg : getMessage();
+        }
+        
+        public String getErrorUserTitle() {
+            return errorUserTitle;
+        }
+        
+        public String getErrorType() {
+            return errorType;
+        }
+        
+        public Integer getErrorCode() {
+            return errorCode;
         }
     }
     

@@ -49,6 +49,11 @@ public interface WhatsAppTemplateJpa extends JpaRepository<WhatsAppTemplateEntit
     );
     
     /**
+     * Busca plantilla por nombre y cliente (sin categoría)
+     */
+    Optional<WhatsAppTemplateEntity> findByClientPhoneEntityIdAndName(UUID clientPhoneId, String name);
+    
+    /**
      * Busca plantilla por ID de Meta
      */
     Optional<WhatsAppTemplateEntity> findByMetaTemplateId(String metaTemplateId);

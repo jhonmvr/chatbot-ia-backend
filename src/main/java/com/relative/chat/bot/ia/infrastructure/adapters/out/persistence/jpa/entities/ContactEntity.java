@@ -177,9 +177,6 @@ public class ContactEntity {
     @ColumnDefault("false")
     private Boolean dataProcessingConsent = false;
 
-    @Column(name = "tag_names")
-    private List<String> tagNames;
-
     @ColumnDefault("'{}'::jsonb")
     @Column(name = "attributes", nullable = false)
     @JdbcTypeCode(SqlTypes.JSON)

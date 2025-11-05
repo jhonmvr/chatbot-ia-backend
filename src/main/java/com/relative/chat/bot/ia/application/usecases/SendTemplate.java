@@ -1,10 +1,12 @@
 package com.relative.chat.bot.ia.application.usecases;
 
-import com.relative.chat.bot.ia.application.ports.out.WhatsAppService;
+import com.relative.chat.bot.ia.application.services.WhatsAppProviderConfigServiceV2;
+import com.relative.chat.bot.ia.infrastructure.adapters.out.whatsapp.WhatsAppProviderRouter;
 import com.relative.chat.bot.ia.domain.common.UuidId;
 import com.relative.chat.bot.ia.domain.identity.Client;
 import com.relative.chat.bot.ia.domain.messaging.*;
 import com.relative.chat.bot.ia.domain.ports.identity.ClientPhoneRepository;
+import com.relative.chat.bot.ia.domain.ports.messaging.ConversationRepository;
 import com.relative.chat.bot.ia.domain.ports.messaging.MessageRepository;
 import com.relative.chat.bot.ia.domain.ports.messaging.WhatsAppTemplateRepository;
 import com.relative.chat.bot.ia.domain.types.Channel;
@@ -33,9 +35,11 @@ import java.util.Optional;
 public class SendTemplate {
     
     private final MessageRepository messageRepository;
-    private final WhatsAppService whatsAppService;
+    private final WhatsAppProviderRouter whatsAppRouter;
     private final ClientPhoneRepository clientPhoneRepository;
     private final WhatsAppTemplateRepository templateRepository;
+    private final ConversationRepository conversationRepository;
+    private final WhatsAppProviderConfigServiceV2 configServiceV2;
     
     /**
      * Envía un mensaje con plantilla
@@ -95,11 +99,14 @@ public class SendTemplate {
         // 5. Validar parámetros según el formato
         validateParameters(template, parameters, parameterFormat);
         
-        // 6. Crear el mensaje
+        // 6. Obtener o crear conversación
+        UuidId<Conversation> finalConversationId = getOrCreateConversation(clientId, contactId, phoneId, conversationId);
+        
+        // 7. Crear el mensaje
         Message message = new Message(
                 UuidId.newId(),
                 clientId,
-                conversationId,
+                finalConversationId,
                 contactId,
                 phoneId,
                 Channel.WHATSAPP,
@@ -109,23 +116,32 @@ public class SendTemplate {
         );
         
         try {
-            // 7. Enviar a través del servicio externo
-            if (whatsAppService != null) {
-                String externalId = whatsAppService.sendTemplate(
-                    phone.phone().value(), 
+            // 8. Enviar a través del servicio externo
+            if (whatsAppRouter != null) {
+                // Determinar el número de origen y el provider basándose en la configuración del cliente
+                ProviderInfo providerInfo = determineProviderInfo(phoneId, phone);
+                
+                // Obtener el idioma de la plantilla
+                String language = extractLanguageCode(template.language());
+                
+                String externalId = whatsAppRouter.sendTemplate(
+                    providerInfo.fromNumber(), 
                     toNumber, 
                     templateName, 
-                    parameters
+                    language,
+                    parameters,
+                    providerInfo.provider()
                 );
                 message.markSent(Instant.now(), externalId);
-                log.info("Plantilla '{}' enviada exitosamente. ID externo: {}", templateName, externalId);
+                log.info("Plantilla '{}' enviada exitosamente usando provider {}. ID externo: {}", 
+                    templateName, providerInfo.provider(), externalId);
             }
         } catch (Exception e) {
             log.error("Error al enviar plantilla '{}': {}", templateName, e.getMessage(), e);
             message.fail(e.getMessage());
         }
         
-        // 8. Guardar el mensaje
+        // 9. Guardar el mensaje
         messageRepository.save(message);
         
         return message;
@@ -201,5 +217,130 @@ public class SendTemplate {
         }
         
         return content.toString();
+    }
+    
+    /**
+     * Obtiene o crea una conversación
+     */
+    private UuidId<Conversation> getOrCreateConversation(
+            UuidId<Client> clientId,
+            UuidId<Contact> contactId,
+            UuidId<ClientPhone> phoneId,
+            UuidId<Conversation> existingConversationId
+    ) {
+        // Si se proporcionó una conversación existente, verificarla
+        if (existingConversationId != null) {
+            Optional<Conversation> existing = conversationRepository.findById(existingConversationId);
+            if (existing.isPresent()) {
+                return existingConversationId;
+            }
+        }
+        
+        // Crear nueva conversación
+        // Nota: ConversationEntity requiere contactId obligatorio
+        // Si contactId es null, no podemos crear una conversación válida
+        if (contactId == null) {
+            throw new IllegalStateException("No se puede crear una conversación sin un contacto. Proporcione contactId.");
+        }
+        
+        Conversation newConversation = new Conversation(
+                UuidId.newId(),
+                clientId,
+                contactId,
+                phoneId,
+                Channel.WHATSAPP,
+                "Envío de plantilla",
+                Instant.now()
+        );
+        
+        conversationRepository.save(newConversation);
+        return newConversation.id();
+    }
+    
+    /**
+     * Información del provider y número de origen
+     */
+    private record ProviderInfo(String provider, String fromNumber) {}
+    
+    /**
+     * Determina el provider y el número de origen para enviar el mensaje usando la nueva arquitectura parametrizable
+     * Lee la configuración desde la base de datos
+     * 
+     * @param phoneId ID del teléfono
+     * @param phone El objeto ClientPhone
+     * @return Información del provider y número de origen
+     */
+    private ProviderInfo determineProviderInfo(UuidId<ClientPhone> phoneId, ClientPhone phone) {
+        String provider = phone.provider() != null ? phone.provider() : "META";
+        
+        // Obtener configuración del proveedor usando la nueva arquitectura
+        Optional<WhatsAppProviderConfigServiceV2.ProviderConfiguration> configOpt = 
+                configServiceV2.getProviderConfiguration(phone.id(), provider);
+        
+        if (configOpt.isPresent()) {
+            WhatsAppProviderConfigServiceV2.ProviderConfiguration config = configOpt.get();
+            
+            // Para Meta, usar el phone_number_id si está disponible
+            if ("META".equalsIgnoreCase(provider)) {
+                String phoneNumberId = config.getConfigValueOrDefault("phone_number_id", "");
+                if (!phoneNumberId.isEmpty()) {
+                    log.debug("Usando phone_number_id desde configuración: {}", phoneNumberId);
+                    return new ProviderInfo(provider, phoneNumberId);
+                }
+            }
+            
+            // Para otros proveedores, usar el provider_sid o el número E164
+            String providerSid = phone.providerSidOpt().orElse(phone.phone().value());
+            log.debug("Usando provider_sid o E164: {}", providerSid);
+            return new ProviderInfo(provider, providerSid);
+        }
+        
+        // Fallback a la lógica anterior si no hay configuración parametrizable
+        log.warn("No se encontró configuración parametrizable para phone: {}. Usando fallback.", phoneId.value());
+        
+        // Para Meta, usar el provider_sid como phone_number_id
+        if ("META".equalsIgnoreCase(provider) && phone.providerSidOpt().isPresent()) {
+            return new ProviderInfo(provider, phone.providerSidOpt().get());
+        }
+        
+        String fromNumber = phone.providerSidOpt().orElse(phone.phone().value());
+        return new ProviderInfo(provider, fromNumber);
+    }
+    
+    /**
+     * Extrae el código de idioma desde el formato de la plantilla
+     * Meta requiere el formato completo con código de país (ej: "en_US", "es_ES")
+     * 
+     * @param language Idioma de la plantilla desde la BD
+     * @return Código de idioma para Meta API en formato ISO 639-1 + ISO 3166-1
+     */
+    private String extractLanguageCode(String language) {
+        if (language == null || language.isEmpty()) {
+            return "es_ES"; // Default a español con código de país para Meta
+        }
+        
+        // Meta requiere el formato completo con código de país (ej: "en_US", "es_ES")
+        // Si ya tiene el formato correcto, usar tal cual
+        if (language.contains("_")) {
+            return language;
+        }
+        
+        // Si solo tiene el código de idioma sin país, normalizar
+        return normalizeLanguageCode(language);
+    }
+    
+    /**
+     * Normaliza códigos de idioma simples a formato Meta con código de país
+     */
+    private String normalizeLanguageCode(String language) {
+        return switch (language.toLowerCase()) {
+            case "es" -> "es_ES";
+            case "en" -> "en_US";
+            case "pt" -> "pt_BR";
+            case "fr" -> "fr_FR";
+            case "de" -> "de_DE";
+            case "it" -> "it_IT";
+            default -> language + "_" + language.toUpperCase(); // Intento genérico
+        };
     }
 }

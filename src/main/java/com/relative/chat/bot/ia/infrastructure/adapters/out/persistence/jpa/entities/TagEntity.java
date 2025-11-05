@@ -45,7 +45,7 @@ public class TagEntity {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
     
-    // Relación many-to-many con ContactEntity
-    @ManyToMany(mappedBy = "tags", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    // Relación many-to-many con ContactEntity (LAZY para evitar carga innecesaria)
+    @ManyToMany(mappedBy = "tags", cascade = {CascadeType.PERSIST, CascadeType.MERGE}, fetch = FetchType.LAZY)
     private List<ContactEntity> contacts = new ArrayList<>();
 }

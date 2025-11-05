@@ -7,7 +7,6 @@ import com.relative.chat.bot.ia.infrastructure.adapters.out.whatsapp.dto.SendTex
 import com.relative.chat.bot.ia.infrastructure.config.WWebJsProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
@@ -18,7 +17,6 @@ import java.util.Map;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "app.whatsapp.provider", havingValue = "wwebjs")
 public class WWebJsWhatsAppAdapter implements WhatsAppService {
 
     private final RestClient wwebjsRestClient;
@@ -44,7 +42,7 @@ public class WWebJsWhatsAppAdapter implements WhatsAppService {
     }
 
     @Override
-    public String sendTemplate(String from, String to, String templateId, Map<String, String> parameters) {
+    public String sendTemplate(String from, String to, String templateId, String language, Map<String, String> parameters) {
         var request = new SendTemplateRequest(from, to, templateId, parameters);
         try {
             SendResponse resp = wwebjsRestClient.post()

@@ -77,7 +77,20 @@ public class WhatsAppTemplateRepositoryAdapter implements WhatsAppTemplateReposi
         String name, 
         TemplateCategory category
     ) {
+        // Si category es null, usar el método sin categoría
+        if (category == null) {
+            return findByClientPhoneIdAndName(clientPhoneId, name);
+        }
         return whatsAppTemplateJpa.findByClientPhoneEntityIdAndNameAndCategory(clientPhoneId.value(), name, category.name())
+                .map(WhatsAppTemplateMapper::toDomain);
+    }
+    
+    @Override
+    public Optional<WhatsAppTemplate> findByClientPhoneIdAndName(
+        UuidId<ClientPhone> clientPhoneId,
+        String name
+    ) {
+        return whatsAppTemplateJpa.findByClientPhoneEntityIdAndName(clientPhoneId.value(), name)
                 .map(WhatsAppTemplateMapper::toDomain);
     }
     
