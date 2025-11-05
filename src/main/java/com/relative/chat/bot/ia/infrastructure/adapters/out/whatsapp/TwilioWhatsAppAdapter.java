@@ -3,7 +3,6 @@ package com.relative.chat.bot.ia.infrastructure.adapters.out.whatsapp;
 import com.relative.chat.bot.ia.application.ports.out.WhatsAppService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -21,7 +20,6 @@ import java.util.Map;
  */
 @Slf4j
 @Service
-@ConditionalOnProperty(name = "app.whatsapp.provider", havingValue = "twilio")
 public class TwilioWhatsAppAdapter implements WhatsAppService {
     
     private final WebClient twilioClient;
@@ -93,7 +91,7 @@ public class TwilioWhatsAppAdapter implements WhatsAppService {
     }
     
     @Override
-    public String sendTemplate(String from, String to, String templateId, Map<String, String> parameters) {
+    public String sendTemplate(String from, String to, String templateId, String language, Map<String, String> parameters) {
         // Twilio usa Content SID para plantillas aprobadas
         if (twilioClient == null) {
             log.error("No se puede enviar plantilla: Twilio no está configurado");

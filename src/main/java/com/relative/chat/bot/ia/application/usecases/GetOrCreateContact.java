@@ -5,7 +5,7 @@ import com.relative.chat.bot.ia.domain.identity.Client;
 import com.relative.chat.bot.ia.domain.messaging.Contact;
 import com.relative.chat.bot.ia.domain.ports.messaging.ContactRepository;
 import com.relative.chat.bot.ia.domain.types.Channel;
-import com.relative.chat.bot.ia.domain.types.EntityStatus;
+import com.relative.chat.bot.ia.domain.vo.PhoneE164;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,13 +45,13 @@ public class GetOrCreateContact {
         }
         
         // Crear nuevo contacto
-        Contact newContact = new Contact(
-                UuidId.newId(),
+        Contact newContact = Contact.create(
                 clientId,
                 displayName != null ? displayName : phoneNumber,
-                null, // email
-                null, // tags
-                EntityStatus.ACTIVE
+                null, // firstName
+                null, // lastName
+                new PhoneE164(phoneNumber),
+                null  // email
         );
         
         contactRepository.save(newContact);

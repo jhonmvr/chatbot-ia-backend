@@ -21,9 +21,10 @@ public interface WhatsAppService {
      * @param from Número de teléfono origen
      * @param to Número de teléfono destino
      * @param templateId ID de la plantilla
+     * @param language Código de idioma de la plantilla (ej: "es", "en_US")
      * @param parameters Parámetros de la plantilla
      * @return ID externo del mensaje enviado
      */
-    String sendTemplate(String from, String to, String templateId, java.util.Map<String, String> parameters);
+    String sendTemplate(String from, String to, String templateId, String language, java.util.Map<String, String> parameters);
 }
 
