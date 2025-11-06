@@ -145,10 +145,10 @@ public class ContactTagController {
     })
     @GetMapping("/{contactId}/tags")
     public ResponseEntity<Map<String, Object>> getTagsByContactId(
-            @PathVariable UUID contactId
+            @PathVariable String contactId
     ) {
         try {
-            List<ContactTag> contactTags = contactTagRepository.findAllByContactId(new UuidId<>(contactId));
+            List<ContactTag> contactTags = contactTagRepository.findAllByContactId(UuidId.of(UUID.fromString(contactId)));
 
             if (contactTags == null || contactTags.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
@@ -162,7 +162,7 @@ public class ContactTagController {
             return ResponseEntity.ok(Map.of(
                     "status", "success",
                     "count", contactTags.size(),
-                    "data", contactTags
+                    "data", contactTags.stream().map(this::toDto).toList()
             ));
 
         } catch (Exception e) {
@@ -172,6 +172,18 @@ public class ContactTagController {
                     "message", "Error interno del servidor: " + e.getMessage()
             ));
         }
+    }
+
+
+    /**
+     * Convierte una entidad ContactTag en un DTO serializable
+     */
+    private Map<String, Object> toDto(ContactTag contactTag) {
+        return Map.of(
+                "contactId", contactTag.contactId() != null ? contactTag.contactId().value().toString() : null,
+                "tagId", contactTag.tagId() != null ? contactTag.tagId().value().toString() : null,
+                "createdAt", contactTag.createdAt() != null ? contactTag.createdAt().toString() : null
+        );
     }
 
     // DTO interno
