@@ -12,7 +12,7 @@ public final class UuidId<T> implements Id<T> {
     
     private final UUID value;
     
-    private UuidId(UUID value) {
+    public UuidId(UUID value) {
         this.value = Objects.requireNonNull(value, "UUID no puede ser null");
     }
     
