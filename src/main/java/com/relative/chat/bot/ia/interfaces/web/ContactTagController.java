@@ -19,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -123,6 +124,49 @@ public class ContactTagController {
 
         } catch (Exception e) {
             log.error("Error eliminando etiqueta del contacto: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "status", "error",
+                    "message", "Error interno del servidor: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Obtiene todas las etiquetas asociadas a un contacto
+     */
+    @Operation(
+            summary = "Listar etiquetas de un contacto",
+            description = "Devuelve todas las etiquetas asociadas a un contacto específico"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Listado obtenido exitosamente"),
+            @ApiResponse(responseCode = "404", description = "No se encontraron etiquetas para el contacto"),
+            @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
+    @GetMapping("/{contactId}/tags")
+    public ResponseEntity<Map<String, Object>> getTagsByContactId(
+            @PathVariable UUID contactId
+    ) {
+        try {
+            List<ContactTag> contactTags = contactTagRepository.findAllByContactId(new UuidId<>(contactId));
+
+            if (contactTags == null || contactTags.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                        "status", "not_found",
+                        "message", "No se encontraron etiquetas para el contacto especificado"
+                ));
+            }
+
+            log.info("Encontradas {} etiquetas para el contacto {}", contactTags.size(), contactId);
+
+            return ResponseEntity.ok(Map.of(
+                    "status", "success",
+                    "count", contactTags.size(),
+                    "data", contactTags
+            ));
+
+        } catch (Exception e) {
+            log.error("Error obteniendo etiquetas del contacto {}: {}", contactId, e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                     "status", "error",
                     "message", "Error interno del servidor: " + e.getMessage()

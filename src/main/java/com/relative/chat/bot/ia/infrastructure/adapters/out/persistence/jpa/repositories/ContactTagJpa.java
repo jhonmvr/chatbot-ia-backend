@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Repository
@@ -34,4 +35,14 @@ public interface ContactTagJpa extends JpaRepository<ContactTagEntity, ContactTa
         ON CONFLICT DO NOTHING
         """, nativeQuery = true)
     void insertContactTag(@Param("contactId") UUID contactId, @Param("tagId") UUID tagId);
+
+    @Query(value = """
+    SELECT CASE WHEN COUNT(*) > 0 THEN TRUE ELSE FALSE END
+    FROM chatbotia.contact_tag
+    WHERE contact_id = :contactId AND tag_id = :tagId
+    """, nativeQuery = true)
+    boolean existsByContactIdAndTagId(@Param("contactId") UUID contactId, @Param("tagId") UUID tagId);
+
+    @Query("SELECT ct FROM ContactTagEntity ct WHERE ct.id.contactId = :contactId")
+    List<ContactTagEntity> findAllByContactId(@Param("contactId") UUID contactId);
 }

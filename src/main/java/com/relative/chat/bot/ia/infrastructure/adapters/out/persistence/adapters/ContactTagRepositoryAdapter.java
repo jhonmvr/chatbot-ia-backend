@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /**
  * Adapter del repositorio de relaciones Contact-Tag.
  */
@@ -47,4 +49,22 @@ public class ContactTagRepositoryAdapter implements ContactTagRepository {
                 tagId.value()
         );
     }
+
+    @Override
+    public boolean existTag(UuidId<Contact> contactId, UuidId<Tag> tagId) {
+        return contactTagJpa.existsByContactIdAndTagId(contactId.value(), tagId.value());
+    }
+
+    @Override
+    public List<ContactTag> findAllByContactId(UuidId<Contact> contactId) {
+        return contactTagJpa.findAllByContactId(contactId.value())
+                .stream()
+                .map(entity -> new ContactTag(
+                        new UuidId<>(entity.getId().getContactId()),
+                        new UuidId<>(entity.getId().getTagId()),
+                        entity.getCreatedAt().toInstant()
+                ))
+                .toList();
+    }
+
 }
