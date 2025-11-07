@@ -4,13 +4,17 @@ import com.relative.chat.bot.ia.domain.common.UuidId;
 import com.relative.chat.bot.ia.domain.identity.Client;
 import com.relative.chat.bot.ia.domain.messaging.Contact;
 import com.relative.chat.bot.ia.domain.ports.messaging.ContactRepository;
+import com.relative.chat.bot.ia.infrastructure.adapters.out.persistence.jpa.entities.ContactEntity;
 import com.relative.chat.bot.ia.infrastructure.adapters.out.persistence.jpa.mappers.ContactMapper;
 import com.relative.chat.bot.ia.infrastructure.adapters.out.persistence.jpa.repositories.ContactJpa;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -38,10 +42,27 @@ public class ContactRepositoryAdapter implements ContactRepository {
         return contactJpa.findByClientEntityIdAndPhoneE164(clientId.value(), phoneNumber)
                 .map(ContactMapper::toDomain);
     }
-    
+
     @Override
+    @Transactional
     public void save(Contact contact) {
-        contactJpa.save(ContactMapper.toEntity(contact, em));
+        ContactEntity ent = ContactMapper.toEntity(contact, em);
+
+        if (contact.id() != null) {
+            // Si es una actualización, preservar las relaciones existentes
+            ContactEntity existingEntity = contactJpa.findById(contact.id().value())
+                    .orElseThrow(() -> new EntityNotFoundException("Contact not found"));
+
+            // Preservar tags y categories existentes
+            ent.setTags(existingEntity.getTags());
+            ent.setCategories(existingEntity.getCategories());
+        } else {
+            // Si es una creación nueva, inicializar listas vacías
+            ent.setTags(new ArrayList<>());
+            ent.setCategories(new ArrayList<>());
+        }
+
+        contactJpa.save(ent);
     }
     
     @Override
