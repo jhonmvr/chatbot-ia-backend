@@ -22,26 +22,42 @@ public interface ClientPhoneRepository {
      * Busca todos los teléfonos de un cliente
      */
     List<ClientPhone> findByClient(UuidId<Client> clientId);
-    
+
     /**
      * Busca el cliente por provider SID (phone_number_id de Meta, o SID de Twilio)
      * ESTE ES EL MÉTODO CLAVE PARA RESOLVER EL CLIENTE DESDE EL WEBHOOK
-     * 
+     *
      * @param providerSid El identificador del proveedor (ej: phone_number_id de Meta)
      * @param provider El proveedor (META, TWILIO, etc)
      * @return El cliente dueño de ese número
      */
     Optional<Client> findClientByProviderSid(String providerSid, String provider);
-    
+    /**
+     * Busca el cliente por provider SID (phone_number_id de Meta, o SID de Twilio)
+     * ESTE ES EL MÉTODO CLAVE PARA RESOLVER EL CLIENTE DESDE EL WEBHOOK
+     *
+     * @param providerSid El identificador del proveedor (ej: phone_number_id de Meta)
+     * @return El cliente dueño de ese número
+     */
+    Optional<Client> findClientByProviderSid(String providerSid);
+
     /**
      * Busca el ClientPhone por provider SID
-     * 
+     *
      * @param providerSid El identificador del proveedor
      * @param provider El proveedor
      * @return El ClientPhone encontrado
      */
     Optional<ClientPhone> findByProviderSid(String providerSid, String provider);
-    
+
+    /**
+     * Busca el ClientPhone por provider SID
+     *
+     * @param providerSid El identificador del proveedor
+     * @return El ClientPhone encontrado
+     */
+    Optional<ClientPhone> findByProviderSid(String providerSid);
+
     /**
      * Busca por número E164 y canal
      */
