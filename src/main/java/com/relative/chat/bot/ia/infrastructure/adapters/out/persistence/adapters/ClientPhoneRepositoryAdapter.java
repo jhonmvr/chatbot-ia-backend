@@ -43,33 +43,60 @@ public class ClientPhoneRepositoryAdapter implements ClientPhoneRepository {
                 .map(ClientPhoneMapper::toDomain)
                 .collect(Collectors.toList());
     }
-    
+
     @Override
     public Optional<Client> findClientByProviderSid(String providerSid, String provider) {
         if (providerSid == null || provider == null) {
             log.warn("Intento de buscar cliente con providerSid o provider null");
             return Optional.empty();
         }
-        
+
         return clientPhoneJpa.findByProviderSidAndProvider(providerSid, provider)
                 .map(clientPhone -> {
                     ClientEntity clientEntity = clientPhone.getClientEntity();
                     return new Client(
-                        UuidId.of(clientEntity.getId()),
-                        clientEntity.getTaxId() != null ? clientEntity.getTaxId() : clientEntity.getName(),
-                        clientEntity.getName(),
-                        EntityStatus.valueOf(clientEntity.getStatus())
+                            UuidId.of(clientEntity.getId()),
+                            clientEntity.getTaxId() != null ? clientEntity.getTaxId() : clientEntity.getName(),
+                            clientEntity.getName(),
+                            EntityStatus.valueOf(clientEntity.getStatus())
                     );
                 });
     }
-    
+    @Override
+    public Optional<Client> findClientByProviderSid(String providerSid) {
+        if (providerSid == null ) {
+            log.warn("Intento de buscar cliente con providerSid null");
+            return Optional.empty();
+        }
+
+        return clientPhoneJpa.findByProviderSid(providerSid)
+                .map(clientPhone -> {
+                    ClientEntity clientEntity = clientPhone.getClientEntity();
+                    return new Client(
+                            UuidId.of(clientEntity.getId()),
+                            clientEntity.getTaxId() != null ? clientEntity.getTaxId() : clientEntity.getName(),
+                            clientEntity.getName(),
+                            EntityStatus.valueOf(clientEntity.getStatus())
+                    );
+                });
+    }
+
     @Override
     public Optional<ClientPhone> findByProviderSid(String providerSid, String provider) {
         if (providerSid == null || provider == null) {
             return Optional.empty();
         }
-        
+
         return clientPhoneJpa.findByProviderSidAndProvider(providerSid, provider)
+                .map(ClientPhoneMapper::toDomain);
+    }
+    @Override
+    public Optional<ClientPhone> findByProviderSid(String providerSid) {
+        if (providerSid == null ) {
+            return Optional.empty();
+        }
+
+        return clientPhoneJpa.findByProviderSid(providerSid)
                 .map(ClientPhoneMapper::toDomain);
     }
     

@@ -554,8 +554,8 @@ public class MetaWhatsAppUnifiedWebhookController {
         
         log.debug("Buscando cliente con phoneNumberId: {}", phoneNumberId);
         
-        // Buscar en la tabla client_phone por provider_sid='phoneNumberId' y provider='META'
-        return clientPhoneRepository.findClientByProviderSid(phoneNumberId, "META");
+        // Buscar en la tabla client_phone por provider_sid='phoneNumberId'
+        return clientPhoneRepository.findClientByProviderSid(phoneNumberId);
     }
     
     // ==================== MÉTODOS DE EXTRACCIÓN ====================

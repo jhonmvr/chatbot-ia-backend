@@ -18,13 +18,19 @@ public interface ClientPhoneJpa extends JpaRepository<ClientPhoneEntity, UUID> {
      * Buscar todos los teléfonos de un cliente
      */
     List<ClientPhoneEntity> findByClientEntityId(UUID clientId);
-    
+
     /**
      * Buscar por provider SID y provider
      * Este método es CLAVE para identificar al cliente desde webhooks de WhatsApp
      */
     Optional<ClientPhoneEntity> findByProviderSidAndProvider(String providerSid, String provider);
-    
+
+    /**
+     * Buscar por provider SID y provider
+     * Este método es CLAVE para identificar al cliente desde webhooks de WhatsApp
+     */
+    Optional<ClientPhoneEntity> findByProviderSid(String providerSid);
+
     /**
      * Buscar por número E164 y canal
      */
