@@ -207,6 +207,7 @@ $$ LANGUAGE plpgsql;
 COMMENT ON FUNCTION get_contact_full_address IS 'Obtiene la dirección completa de un contacto';
 
 -- Insertar datos de ejemplo para contactos
+/*
 INSERT INTO chatbotia.contact (
     id,
     client_id,
@@ -271,3 +272,5 @@ INSERT INTO chatbotia.contact (
     NOW()
 )
 ON CONFLICT DO NOTHING;
+
+ */

@@ -2,7 +2,6 @@ package com.relative.chat.bot.ia.domain.messaging;
 
 import com.relative.chat.bot.ia.domain.common.*;
 import com.relative.chat.bot.ia.domain.identity.*;
-import com.relative.chat.bot.ia.domain.types.*;
 import com.relative.chat.bot.ia.domain.vo.*;
 
 import java.time.Instant;
@@ -78,7 +77,7 @@ public record Contact(
     ) {
         Instant now = Instant.now();
         return new Contact(
-                UuidId.newId(),
+                null,
                 clientId,
                 null, // externalId
                 displayName,

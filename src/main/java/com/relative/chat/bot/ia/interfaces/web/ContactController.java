@@ -172,7 +172,7 @@ public class ContactController {
             // Guardar
             contactRepository.save(contact);
             
-            log.info("Contacto creado exitosamente: {} para cliente: {}", contact.id().value(), clientId);
+            log.info("Contacto creado exitosamente para cliente: {}", clientId);
             
             return ResponseEntity.status(HttpStatus.CREATED).body(Map.of(
                 "status", "success",

@@ -93,7 +93,12 @@ public class WhatsAppTemplateRepositoryAdapter implements WhatsAppTemplateReposi
         return whatsAppTemplateJpa.findByClientPhoneEntityIdAndName(clientPhoneId.value(), name)
                 .map(WhatsAppTemplateMapper::toDomain);
     }
-    
+
+    @Override
+    public Optional<WhatsAppTemplate> findByName(String name) {
+        return whatsAppTemplateJpa.findByName(name).map(WhatsAppTemplateMapper::toDomain);
+    }
+
     @Override
     public Optional<WhatsAppTemplate> findByMetaTemplateId(String metaTemplateId) {
         return whatsAppTemplateJpa.findByMetaTemplateId(metaTemplateId)

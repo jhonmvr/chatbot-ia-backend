@@ -18,7 +18,7 @@ public interface WhatsAppTemplateRepository {
      * Busca una plantilla por ID
      */
     Optional<WhatsAppTemplate> findById(UuidId<WhatsAppTemplate> id);
-    
+
     /**
      * Busca plantillas por ID del número de teléfono cliente
      */
@@ -60,6 +60,8 @@ public interface WhatsAppTemplateRepository {
         UuidId<ClientPhone> clientPhoneId,
         String name
     );
+
+    Optional<WhatsAppTemplate> findByName(String name);
     
     /**
      * Busca plantilla por ID de Meta

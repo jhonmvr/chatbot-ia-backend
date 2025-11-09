@@ -58,6 +58,7 @@ public class ContactRepositoryAdapter implements ContactRepository {
             ent.setCategories(existingEntity.getCategories());
         } else {
             // Si es una creación nueva, inicializar listas vacías
+            ent.setId(UuidId.newId().value());
             ent.setTags(new ArrayList<>());
             ent.setCategories(new ArrayList<>());
         }
