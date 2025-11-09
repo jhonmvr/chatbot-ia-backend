@@ -618,7 +618,7 @@ public class ContactController {
             (String) request.getOrDefault("preferredContactTime", contact.preferredContactTime()),
             (Boolean) request.getOrDefault("marketingConsent", contact.marketingConsent()),
             (Boolean) request.getOrDefault("dataProcessingConsent", contact.dataProcessingConsent()),
-            request.get("tags") != null ? (List<String>) request.get("tags") : contact.tagNames(),
+            contact.tagNames(),
             request.get("attributes") != null ? (Map<String, Object>) request.get("attributes") : contact.attributes(),
             contact.lastSeenAt(),
             contact.lastContactedAt(),
