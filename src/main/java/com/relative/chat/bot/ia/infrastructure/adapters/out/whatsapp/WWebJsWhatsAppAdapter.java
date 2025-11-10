@@ -59,7 +59,7 @@ public class WWebJsWhatsAppAdapter implements WhatsAppService {
 
             // Construir payload según API de WWebJs
             Map<String, Object> payload = new HashMap<>();
-            payload.put("from", from);
+            payload.put("sessionId", from);
             payload.put("to", cleanTo);
             payload.put("message", message);
 
