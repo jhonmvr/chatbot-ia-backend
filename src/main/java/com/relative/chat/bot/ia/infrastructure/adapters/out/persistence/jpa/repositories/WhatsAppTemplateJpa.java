@@ -57,7 +57,9 @@ public interface WhatsAppTemplateJpa extends JpaRepository<WhatsAppTemplateEntit
      * Busca plantilla por ID de Meta
      */
     Optional<WhatsAppTemplateEntity> findByMetaTemplateId(String metaTemplateId);
-    
+
+    Optional<WhatsAppTemplateEntity> findByName(String name);
+
     /**
      * Busca plantillas aprobadas y listas para usar
      */

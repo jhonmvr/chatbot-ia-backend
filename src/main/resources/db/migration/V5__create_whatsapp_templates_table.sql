@@ -71,6 +71,7 @@ COMMENT ON COLUMN whatsapp_templates.created_at IS 'Fecha de creación';
 COMMENT ON COLUMN whatsapp_templates.updated_at IS 'Fecha de última actualización';
 
 -- Insertar datos de ejemplo para plantillas comunes
+/*
 INSERT INTO whatsapp_templates (
     client_phone_id,
     name,
@@ -220,6 +221,7 @@ INSERT INTO whatsapp_templates (
     ]'::jsonb
 )
 ON CONFLICT (client_phone_id, name, category) DO NOTHING;
+ */
 
 -- Crear vista para plantillas aprobadas y listas para usar
 CREATE OR REPLACE VIEW whatsapp_templates_ready AS

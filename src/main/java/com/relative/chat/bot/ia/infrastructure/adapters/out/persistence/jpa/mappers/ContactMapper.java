@@ -3,6 +3,7 @@ package com.relative.chat.bot.ia.infrastructure.adapters.out.persistence.jpa.map
 import com.relative.chat.bot.ia.domain.messaging.Contact;
 import com.relative.chat.bot.ia.infrastructure.adapters.out.persistence.jpa.entities.ClientEntity;
 import com.relative.chat.bot.ia.infrastructure.adapters.out.persistence.jpa.entities.ContactEntity;
+import com.relative.chat.bot.ia.infrastructure.adapters.out.persistence.jpa.entities.TagEntity;
 import jakarta.persistence.EntityManager;
 
 import java.time.OffsetDateTime;
@@ -63,7 +64,7 @@ public final class ContactMapper {
                 e.getPreferredContactTime(),
                 e.getMarketingConsent(),
                 e.getDataProcessingConsent(),
-                new ArrayList<>(), // tagNames ya no existe, los tags se cargan de la relación many-to-many
+                e.getTags().stream().map(TagEntity::getName).toList(),
                 e.getAttributes() != null ? e.getAttributes() : new HashMap<>(),
                 e.getLastSeenAt() != null ? e.getLastSeenAt().toInstant() : null,
                 e.getLastContactedAt() != null ? e.getLastContactedAt().toInstant() : null,
@@ -77,7 +78,7 @@ public final class ContactMapper {
         if (d == null) return null;
         
         ContactEntity e = new ContactEntity();
-        e.setId(d.id().value());
+        e.setId(d.id() != null ? d.id().value() : null);
         e.setExternalId(d.externalId());
         e.setDisplayName(d.displayName());
         e.setFirstName(d.firstName());

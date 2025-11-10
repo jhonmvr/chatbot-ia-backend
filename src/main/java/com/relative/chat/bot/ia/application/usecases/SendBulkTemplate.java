@@ -250,8 +250,13 @@ public class SendBulkTemplate {
      * Obtiene contactos filtrados según los criterios especificados
      */
     private List<Contact> getFilteredContacts(UuidId<Client> clientId, BulkSendFilters filters) {
+        log.info("antes de consulta");
+
         List<Contact> allContacts = contactRepository.findByClientId(clientId);
-        
+
+        log.info("contactos {}", allContacts.toString());
+        log.info("filters {}", filters.toString());
+
         return allContacts.stream()
             .filter(contact -> filters.onlyActive() == null || contact.isActive() == filters.onlyActive())
             .filter(contact -> filters.onlyVip() == null || contact.isVip() == filters.onlyVip())

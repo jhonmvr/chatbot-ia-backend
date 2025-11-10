@@ -166,6 +166,7 @@ INSERT INTO provider_config (id, provider_name, provider_type, display_name, des
 
 -- Migrar datos existentes de client_phone a la nueva estructura
 -- Solo para registros que tengan datos de configuración
+/*
 INSERT INTO client_phone_provider_config (id, client_phone_id, provider_config_id, config_values, is_active)
 SELECT 
     gen_random_uuid(),
@@ -201,6 +202,7 @@ AND (
     cp.twilio_account_sid IS NOT NULL OR 
     cp.wwebjs_session_id IS NOT NULL
 );
+ */
 
 -- Comentarios para documentar las tablas
 COMMENT ON TABLE provider_config IS 'Esquemas de configuración parametrizables para proveedores de WhatsApp';
