@@ -48,17 +48,13 @@ public class ContactRepositoryAdapter implements ContactRepository {
     public void save(Contact contact) {
         ContactEntity ent = ContactMapper.toEntity(contact, em);
 
-        if (contact.id() != null) {
-            // Si es una actualización, preservar las relaciones existentes
-            ContactEntity existingEntity = contactJpa.findById(contact.id().value())
-                    .orElseThrow(() -> new EntityNotFoundException("Contact not found"));
+        ContactEntity existingEntity = contactJpa.findById(contact.id().value())
+                .orElse(new ContactEntity());
 
-            // Preservar tags y categories existentes
+        if (existingEntity.getId() != null) {
             ent.setTags(existingEntity.getTags());
             ent.setCategories(existingEntity.getCategories());
         } else {
-            // Si es una creación nueva, inicializar listas vacías
-            ent.setId(UuidId.newId().value());
             ent.setTags(new ArrayList<>());
             ent.setCategories(new ArrayList<>());
         }
