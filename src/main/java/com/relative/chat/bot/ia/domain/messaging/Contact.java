@@ -77,7 +77,7 @@ public record Contact(
     ) {
         Instant now = Instant.now();
         return new Contact(
-                null,
+                UuidId.newId(),
                 clientId,
                 null, // externalId
                 displayName,
