@@ -138,6 +138,7 @@ public class WWebJsWhatsAppAdapter implements WhatsAppService {
             throw new RuntimeException("No se pudo obtener el ID del mensaje");
 
         } catch (Exception e) {
+            e.printStackTrace();
             log.error("Error al enviar plantilla de WhatsApp: {}", e.getMessage(), e);
             throw new RuntimeException("Error al enviar plantilla: " + e.getMessage(), e);
         }

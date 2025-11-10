@@ -64,7 +64,18 @@ public class WhatsAppTemplateService {
         log.info("Plantilla creada exitosamente: {}", template.id().value());
         return template;
     }
-    
+
+    /**
+     * Busca una plantilla por su ID
+     */
+    @Transactional(readOnly = true)
+    public WhatsAppTemplate findById(UuidId<WhatsAppTemplate> templateId) {
+        log.info("Buscando plantilla por ID: {}", templateId.value());
+
+        return templateRepository.findById(templateId)
+                .orElseThrow(() -> new IllegalArgumentException("Plantilla no encontrada: " + templateId.value()));
+    }
+
     /**
      * Actualiza una plantilla existente
      */
