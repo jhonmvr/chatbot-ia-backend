@@ -176,7 +176,7 @@ public class WhatsAppTemplateController {
             ));
         }
     }
-    
+
     /**
      * Listar plantillas por cliente
      * GET /api/whatsapp-templates/client/{clientPhoneId}
@@ -247,32 +247,77 @@ public class WhatsAppTemplateController {
     }
     
     /**
-     * Obtener plantilla por ID
-     * GET /api/whatsapp-templates/{id}
+     * Obtener una plantilla por su ID
+     * GET /api/whatsapp-templates/{templateId}
      */
     @Operation(
-        summary = "Obtener plantilla por ID",
-        description = "Obtiene una plantilla específica con todos sus detalles"
+            summary = "Obtener plantilla por ID",
+            description = "Obtiene los detalles de una plantilla específica de WhatsApp usando su UUID"
     )
     @ApiResponses(value = {
-        @ApiResponse(
-            responseCode = "200",
-            description = "Plantilla obtenida exitosamente"
-        ),
-        @ApiResponse(responseCode = "404", description = "Plantilla no encontrada")
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Plantilla encontrada exitosamente",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "template": {
+                        "id": "550e8400-e29b-41d4-a716-446655440000",
+                        "name": "otp_verification",
+                        "category": "AUTHENTICATION",
+                        "status": "APPROVED",
+                        "language": "es_ES",
+                        "parameterFormat": "POSITIONAL",
+                        "components": [
+                          {
+                            "type": "BODY",
+                            "text": "Tu código de verificación es: {{1}}"
+                          }
+                        ],
+                        "metaTemplateId": "123456789012345",
+                        "createdAt": "2025-11-10T12:34:56Z",
+                        "updatedAt": "2025-11-10T12:34:56Z"
+                      }
+                    }
+                    """)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Plantilla no encontrada",
+                    content = @Content(
+                            mediaType = "application/json",
+                            examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "Plantilla no encontrada: 550e8400-e29b-41d4-a716-446655440000"
+                    }
+                    """)
+                    )
+            )
     })
-    @GetMapping("/{id}")
+    @GetMapping("/{templateId}")
     public ResponseEntity<Map<String, Object>> getTemplateById(
-        @Parameter(description = "UUID de la plantilla", required = true)
-        @PathVariable String id
+            @Parameter(description = "UUID de la plantilla de WhatsApp", required = true)
+            @PathVariable String templateId
     ) {
         try {
-            // TODO: Implementar método en servicio para obtener por ID
-            return ResponseEntity.ok(Map.of(
-                "status", "success",
-                "message", "Funcionalidad en desarrollo"
+            WhatsAppTemplate template = templateService.findById(UuidId.of(UUID.fromString(templateId)));
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("template", toDtoWithComponents(template));
+
+            return ResponseEntity.ok(response);
+
+        } catch (IllegalArgumentException e) {
+            log.warn("Plantilla no encontrada: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+                    "status", "error",
+                    "message", e.getMessage()
             ));
-            
         } catch (Exception e) {
             log.error("Error al obtener plantilla: {}", e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
@@ -281,7 +326,6 @@ public class WhatsAppTemplateController {
             ));
         }
     }
-    
     /**
      * Sincronizar plantilla con Meta API
      * POST /api/whatsapp-templates/{id}/sync
@@ -621,6 +665,33 @@ public class WhatsAppTemplateController {
             dto.put("rejectionReason", template.rejectionReason());
         }
         
+        return dto;
+    }
+
+    private Map<String, Object> toDtoWithComponents(WhatsAppTemplate template) {
+        Map<String, Object> dto = new HashMap<>();
+        dto.put("id", template.id().value().toString());
+        dto.put("clientPhoneId", template.clientPhoneId().value().toString());
+        dto.put("name", template.name());
+        dto.put("category", template.category().name());
+        dto.put("language", template.language());
+        dto.put("status", template.status().name());
+        dto.put("parameterFormat", template.parameterFormat() != null ? template.parameterFormat().name() : null);
+        dto.put("qualityRating", template.qualityRating().name());
+        dto.put("isSyncedWithMeta", template.isSyncedWithMeta());
+        dto.put("canBeSent", template.canBeSent());
+        dto.put("components", template.components());
+        dto.put("createdAt", template.createdAt());
+        dto.put("updatedAt", template.updatedAt());
+
+        if (template.metaTemplateId() != null) {
+            dto.put("metaTemplateId", template.metaTemplateId());
+        }
+
+        if (template.rejectionReason() != null) {
+            dto.put("rejectionReason", template.rejectionReason());
+        }
+
         return dto;
     }
     
