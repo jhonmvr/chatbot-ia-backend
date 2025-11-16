@@ -130,6 +130,24 @@ app:
     top-k-results: 5
     max-conversation-history: 10
 
+  # Configuración OAuth2 para proveedores de calendario
+  oauth2:
+    google:
+      client-id: ${APP_OAUTH2_GOOGLE_CLIENT_ID:}
+      client-secret: ${APP_OAUTH2_GOOGLE_CLIENT_SECRET:}
+      redirect-uri: ${APP_OAUTH2_GOOGLE_REDIRECT_URI:http://localhost:8180/agent-ai-backend/api/oauth2/calendar/callback}
+      scopes:
+        - https://www.googleapis.com/auth/calendar
+        - https://www.googleapis.com/auth/calendar.events
+    outlook:
+      client-id: ${APP_OAUTH2_OUTLOOK_CLIENT_ID:}
+      client-secret: ${APP_OAUTH2_OUTLOOK_CLIENT_SECRET:}
+      tenant-id: ${APP_OAUTH2_OUTLOOK_TENANT_ID:common}
+      redirect-uri: ${APP_OAUTH2_OUTLOOK_REDIRECT_URI:http://localhost:8180/agent-ai-backend/api/oauth2/calendar/callback}
+      scopes:
+        - Calendars.ReadWrite
+        - offline_access
+
 wwebjs:
   base-url: ${WWEBJS_BASE_URL:http://localhost:8085}
   send-text-path: /api/v1/messages/text
