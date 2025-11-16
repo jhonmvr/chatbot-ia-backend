@@ -4,6 +4,7 @@ import com.relative.chat.bot.ia.application.dto.CreateCalendarProviderAccountReq
 import com.relative.chat.bot.ia.application.dto.CalendarProviderAccountResponse;
 import com.relative.chat.bot.ia.application.services.OAuth2Service;
 import com.relative.chat.bot.ia.application.services.TokenExchangeService;
+import com.relative.chat.bot.ia.application.services.UserInfoService;
 import com.relative.chat.bot.ia.application.usecases.ManageCalendarProviderAccount;
 import com.relative.chat.bot.ia.domain.scheduling.CalendarProvider;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,6 +35,7 @@ public class OAuth2Controller {
     
     private final OAuth2Service oauth2Service;
     private final TokenExchangeService tokenExchangeService;
+    private final UserInfoService userInfoService;
     private final ManageCalendarProviderAccount manageCalendarProviderAccount;
     
     /**
@@ -145,8 +147,7 @@ public class OAuth2Controller {
             TokenExchangeService.OAuth2Tokens tokens = tokenExchangeService.exchangeCodeForTokens(code, provider);
             
             // Obtener información del usuario (email) desde el provider
-            // Por ahora usamos un email genérico, pero en el siguiente paso obtendremos el email real
-            String accountEmail = "user@example.com"; // TODO: Obtener email real del provider
+            String accountEmail = userInfoService.getUserEmail(tokens.accessToken(), provider);
             
             // Crear o actualizar la cuenta de calendario
             CreateCalendarProviderAccountRequest createRequest = new CreateCalendarProviderAccountRequest(
