@@ -1,13 +1,16 @@
 package com.relative.chat.bot.ia.infrastructure.config;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
  * Propiedades de configuración OAuth2 para Google Calendar y Microsoft Outlook
  */
+@Slf4j
 @Getter
 @Setter
 @Component
@@ -16,6 +19,17 @@ public class OAuth2Properties {
     
     private Google google = new Google();
     private Outlook outlook = new Outlook();
+    
+    @PostConstruct
+    public void logConfiguration() {
+        if (google != null) {
+            log.info("Configuración OAuth2 Google cargada - clientId: {}, redirectUri: {}", 
+                    google.getClientId() != null ? google.getClientId().substring(0, Math.min(30, google.getClientId().length())) + "..." : "NULL",
+                    google.getRedirectUri());
+        } else {
+            log.warn("Configuración OAuth2 Google no está disponible");
+        }
+    }
     
     @Getter
     @Setter
@@ -39,10 +53,14 @@ public class OAuth2Properties {
         
         /**
          * Scopes OAuth2 requeridos para Google Calendar
+         * openid, email, profile - Necesarios para obtener información del usuario (email)
          * https://www.googleapis.com/auth/calendar - Acceso completo al calendario
          * https://www.googleapis.com/auth/calendar.events - Solo eventos
          */
         private String[] scopes = {
+            "openid",
+            "email",
+            "profile",
             "https://www.googleapis.com/auth/calendar",
             "https://www.googleapis.com/auth/calendar.events"
         };

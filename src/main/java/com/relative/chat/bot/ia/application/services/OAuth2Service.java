@@ -65,9 +65,30 @@ public class OAuth2Service {
     private String buildGoogleAuthorizationUrl(String state) {
         OAuth2Properties.Google google = oauth2Properties.getGoogle();
         
+        // Validar que las propiedades requeridas estén configuradas
+        if (google == null) {
+            throw new IllegalStateException("Configuración de Google OAuth2 no encontrada");
+        }
+        
+        String clientId = google.getClientId();
+        String redirectUri = google.getRedirectUri();
+        
+        if (clientId == null || clientId.isBlank()) {
+            log.error("Client ID de Google OAuth2 no está configurado. Verifica app.oauth2.google.client-id en application.yml");
+            throw new IllegalStateException("Client ID de Google OAuth2 no está configurado");
+        }
+        
+        if (redirectUri == null || redirectUri.isBlank()) {
+            log.error("Redirect URI de Google OAuth2 no está configurado. Verifica app.oauth2.google.redirect-uri en application.yml");
+            throw new IllegalStateException("Redirect URI de Google OAuth2 no está configurado");
+        }
+        
+        log.info("Construyendo URL de autorización de Google - clientId: {}, redirectUri: {}", 
+                clientId.substring(0, Math.min(20, clientId.length())) + "...", redirectUri);
+        
         return UriComponentsBuilder.fromHttpUrl(google.getAuthorizationUrl())
-                .queryParam("client_id", google.getClientId())
-                .queryParam("redirect_uri", google.getRedirectUri())
+                .queryParam("client_id", clientId)
+                .queryParam("redirect_uri", redirectUri)
                 .queryParam("response_type", "code")
                 .queryParam("scope", String.join(" ", google.getScopes()))
                 .queryParam("access_type", "offline") // Necesario para obtener refresh_token

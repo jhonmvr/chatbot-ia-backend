@@ -5,8 +5,11 @@ import com.relative.chat.bot.ia.infrastructure.adapters.out.persistence.jpa.enti
 import com.relative.chat.bot.ia.infrastructure.adapters.out.persistence.jpa.repositories.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.exception.SQLGrammarException;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
@@ -76,7 +79,7 @@ public class PgVectorStoreAdapter implements VectorStore {
     }
     
     @Override
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW, noRollbackFor = {SQLGrammarException.class})
     public List<QueryResult> query(String ns, float[] vector, int topK, Map<String, Object> filter) {
         log.info("Búsqueda en namespace '{}' con topK={}", ns, topK);
         
@@ -135,8 +138,33 @@ public class PgVectorStoreAdapter implements VectorStore {
             log.info("Encontrados {} resultados", queryResults.size());
             return queryResults;
             
+        } catch (DataAccessException e) {
+            // Capturar errores específicos de pgvector
+            Throwable rootCause = e.getRootCause();
+            String errorMessage = rootCause != null ? rootCause.getMessage() : e.getMessage();
+            
+            // Verificar si es un error relacionado con el tipo vector
+            if (errorMessage != null && errorMessage.contains("type \"vector\" does not exist")) {
+                log.error("❌ Error crítico: La extensión pgvector no está disponible en esta conexión. " +
+                        "Esto puede ocurrir cuando se procesan múltiples mensajes en paralelo. " +
+                        "Mensaje: {}", errorMessage);
+                log.error("Stack trace completo:", e);
+                // Retornar lista vacía en lugar de lanzar excepción para no marcar la transacción como rollback-only
+                return List.of();
+            }
+            
+            // Verificar si es un error de transacción abortada
+            if (errorMessage != null && errorMessage.contains("current transaction is aborted")) {
+                log.error("❌ Error de transacción abortada. Esto puede ocurrir cuando una consulta anterior falló. " +
+                        "Mensaje: {}", errorMessage);
+                log.error("Stack trace completo:", e);
+                return List.of();
+            }
+            
+            log.error("Error en búsqueda de vectores: {}", e.getMessage(), e);
+            return List.of();
         } catch (Exception e) {
-            log.error("Error en búsqueda: {}", e.getMessage(), e);
+            log.error("Error inesperado en búsqueda: {}", e.getMessage(), e);
             return List.of();
         }
     }

@@ -107,3 +107,6 @@ dist/
 docker-data/
 *.pid
 pgdata/
+no_subir/client_secret_66481983951-afkpippk5dlpgeudcin8pqt8vfdgfd6a.apps.googleusercontent.com.json
+application.yml
+src/main/resources/application.yml

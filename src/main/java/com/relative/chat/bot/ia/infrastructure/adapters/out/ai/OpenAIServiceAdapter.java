@@ -7,7 +7,9 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.prompt.PromptTemplate;
 import org.springframework.ai.openai.OpenAiChatOptions;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 
+import java.net.SocketException;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -26,20 +28,6 @@ public class OpenAIServiceAdapter implements AIService {
             "\\b(hola|buen[ao]s? (días?|tardes?|noches?)|hey|qué tal|como estas|¿me ayudas|tengo una pregunta|ayuda|gracias|ok|listo|de acuerdo|entendido|hola\\s*,?\\s*tengo una pregunta)\\b",
             Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE
     );
-    private static final String SYSTEM_PROMPT1 = """
-        Eres un asistente de preguntas y respuestas estricto basado en recuperación (RAG).
-        REGLAS OBLIGATORIAS:
-        1) Responde ÚNICAMENTE con la información dentro de <CONTEXT>.
-        2) Si el contexto NO contiene la respuesta, di exactamente: 
-           "No encontrado en el contexto. ¿Quieres aclarar la pregunta?"
-        3) No inventes datos, no completes lagunas, no uses conocimiento general externo.
-        4) No incluyas horarios, teléfonos, direcciones u otras políticas a menos que:
-           - estén en el contexto Y sean relevantes a la pregunta; o
-           - el usuario los haya pedido explícitamente.
-        5) Responde en español, de forma breve y directa (máx. 3-4 oraciones).
-        6) Si hay historial, úsalo solo si es relevante a la pregunta actual y no contradice el contexto.
-        7) Si la pregunta está fuera del dominio del contexto, indícalo con el mensaje del punto (2).
-        """;
     private static final String SYSTEM_PROMPT = """
             Eres un asistente de preguntas y respuestas ESTRICTO basado en recuperación (RAG).
                 
@@ -146,8 +134,31 @@ public class OpenAIServiceAdapter implements AIService {
             
             return response != null ? response : "Lo siento, no pude generar una respuesta.";
             
+        } catch (ResourceAccessException e) {
+            // Error de conexión (timeout, connection reset, etc.)
+            Throwable cause = e.getCause();
+            if (cause instanceof SocketException || 
+                (cause != null && cause.getMessage() != null && 
+                 (cause.getMessage().contains("Connection reset") || 
+                  cause.getMessage().contains("timeout") ||
+                  cause.getMessage().contains("Connection refused")))) {
+                log.error("Error de conexión con OpenAI API: {}. Verificando conectividad de red.", e.getMessage());
+                // Intentar proporcionar una respuesta basada en el contexto si está disponible
+                if (context != null && !context.isEmpty()) {
+                    log.info("Intentando proporcionar respuesta basada en contexto debido a error de conexión");
+                    return generateFallbackResponse(context, userMessage);
+                }
+                return "Lo siento, estoy teniendo problemas de conexión en este momento. Por favor, intenta de nuevo en unos momentos.";
+            }
+            log.error("Error de acceso a recursos de OpenAI: {}", e.getMessage(), e);
+            return "Lo siento, ocurrió un error al procesar tu mensaje. ¿Puedes intentar de nuevo?";
         } catch (Exception e) {
             log.error("Error al generar respuesta con IA: {}", e.getMessage(), e);
+            // Si hay contexto disponible, intentar proporcionar una respuesta básica
+            if (context != null && !context.isEmpty()) {
+                log.info("Intentando proporcionar respuesta basada en contexto debido a error general");
+                return generateFallbackResponse(context, userMessage);
+            }
             return "Lo siento, ocurrió un error al procesar tu mensaje. ¿Puedes intentar de nuevo?";
         }
     }
@@ -202,6 +213,43 @@ public class OpenAIServiceAdapter implements AIService {
                     return String.format("%s: %s", roleLabel, content);
                 })
                 .collect(Collectors.joining("\n"));
+    }
+    
+    /**
+     * Genera una respuesta de fallback basada en el contexto cuando hay problemas de conexión
+     * Intenta extraer información relevante del contexto sin usar la IA
+     */
+    private String generateFallbackResponse(List<String> context, String userMessage) {
+        if (context == null || context.isEmpty()) {
+            return "Lo siento, no tengo información disponible en este momento. Por favor, intenta más tarde.";
+        }
+        
+        // Normalizar la pregunta del usuario para búsqueda simple
+        String normalizedQuery = userMessage.toLowerCase().trim();
+        
+        // Buscar coincidencias simples en el contexto
+        for (String contextItem : context) {
+            String normalizedContext = contextItem.toLowerCase();
+            // Si la pregunta contiene palabras clave del contexto o viceversa
+            if (normalizedContext.contains(normalizedQuery) || 
+                normalizedQuery.contains(contextItem.toLowerCase().split(":")[0].trim()) ||
+                contextItem.toLowerCase().contains(normalizedQuery.split("\\s+")[0])) {
+                // Extraer información relevante
+                String response = contextItem.trim();
+                // Limitar la longitud de la respuesta
+                if (response.length() > 200) {
+                    response = response.substring(0, 197) + "...";
+                }
+                return "Basándome en la información disponible: " + response;
+            }
+        }
+        
+        // Si no hay coincidencia exacta, devolver el primer elemento del contexto
+        String firstContext = context.get(0).trim();
+        if (firstContext.length() > 200) {
+            firstContext = firstContext.substring(0, 197) + "...";
+        }
+        return "Basándome en la información disponible: " + firstContext;
     }
 }
 

@@ -202,10 +202,65 @@ public class SendBulkTemplateController {
      */
     @Operation(
         summary = "Envío masivo a contactos VIP",
-        description = "Envía plantillas específicamente a contactos VIP"
+        description = "Envía plantillas específicamente a contactos marcados como VIP. Solo se enviarán a contactos activos con consentimiento de marketing."
     )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Envío masivo VIP completado",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "result": {
+                        "totalContacts": 25,
+                        "successfulSends": 24,
+                        "failedSends": 1,
+                        "errors": ["Error en contacto xyz: Template no aprobado"],
+                        "startedAt": "2024-12-19T10:30:00Z",
+                        "completedAt": "2024-12-19T10:32:00Z"
+                      }
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Datos inválidos",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "clientId, phoneId y templateName son requeridos"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "404", description = "Teléfono no encontrado"),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @PostMapping(value = "/vip", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> sendBulkTemplateToVip(
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Datos para envío masivo a contactos VIP",
+            required = true,
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "clientId": "a1234567-e89b-12d3-a456-426614174000",
+                      "phoneId": "b1234567-e89b-12d3-a456-426614174000",
+                      "templateName": "vip_promotion",
+                      "parameters": {
+                        "discount": "30%",
+                        "product_name": "Producto Premium"
+                      }
+                    }
+                    """)
+            )
+        )
         @RequestBody Map<String, Object> request
     ) {
         try {
@@ -265,10 +320,65 @@ public class SendBulkTemplateController {
      */
     @Operation(
         summary = "Envío masivo por tags",
-        description = "Envía plantillas a contactos que tienen tags específicos"
+        description = "Envía plantillas a contactos que tienen uno o más tags específicos. Los contactos deben tener al menos uno de los tags especificados y estar activos con consentimiento de marketing."
     )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Envío masivo por tags completado",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "result": {
+                        "totalContacts": 50,
+                        "successfulSends": 48,
+                        "failedSends": 2,
+                        "errors": [],
+                        "startedAt": "2024-12-19T10:30:00Z",
+                        "completedAt": "2024-12-19T10:33:00Z"
+                      }
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Datos inválidos",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "tagNames es requerido y no puede estar vacío"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "404", description = "Teléfono no encontrado"),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @PostMapping(value = "/by-tags", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> sendBulkTemplateByTags(
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Datos para envío masivo por tags",
+            required = true,
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "clientId": "a1234567-e89b-12d3-a456-426614174000",
+                      "phoneId": "b1234567-e89b-12d3-a456-426614174000",
+                      "templateName": "tagged_promotion",
+                      "tagNames": ["VIP", "PREMIUM", "TECH"],
+                      "parameters": {
+                        "product_name": "Nuevo Producto"
+                      }
+                    }
+                    """)
+            )
+        )
         @RequestBody Map<String, Object> request
     ) {
         try {
@@ -339,10 +449,68 @@ public class SendBulkTemplateController {
      */
     @Operation(
         summary = "Envío masivo a lista de contactos",
-        description = "Envía plantillas a una lista específica de contactos"
+        description = "Envía plantillas a una lista específica de contactos identificados por sus UUIDs. Útil cuando se necesita enviar a un grupo seleccionado manualmente de contactos."
     )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Envío masivo a lista de contactos completado",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "result": {
+                        "totalContacts": 10,
+                        "successfulSends": 9,
+                        "failedSends": 1,
+                        "errors": ["Error en contacto xyz: Contacto no encontrado"],
+                        "startedAt": "2024-12-19T10:30:00Z",
+                        "completedAt": "2024-12-19T10:31:00Z"
+                      }
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Datos inválidos",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "contactIds es requerido y no puede estar vacío"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "404", description = "Teléfono no encontrado"),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @PostMapping(value = "/by-contacts", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> sendBulkTemplateByContacts(
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Datos para envío masivo a lista específica de contactos",
+            required = true,
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "clientId": "a1234567-e89b-12d3-a456-426614174000",
+                      "phoneId": "b1234567-e89b-12d3-a456-426614174000",
+                      "templateName": "custom_promotion",
+                      "contactIds": [
+                        "c1234567-e89b-12d3-a456-426614174000",
+                        "d1234567-e89b-12d3-a456-426614174000"
+                      ],
+                      "parameters": {
+                        "product_name": "Producto Especial"
+                      }
+                    }
+                    """)
+            )
+        )
         @RequestBody Map<String, Object> request
     ) {
         try {

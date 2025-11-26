@@ -90,3 +90,20 @@ databaseChangeLog:
             sql: DROP TABLE IF EXISTS chatbotia.contact_category CASCADE;
             sql: DROP TABLE IF EXISTS chatbotia.tag CASCADE;
             sql: DROP TABLE IF EXISTS chatbotia.category CASCADE;
+
+  - changeSet:
+      id: 8
+      author: system
+      changes:
+        - sqlFile:
+            path: classpath:db/migration/V8__create_calendar_provider_account_table.sql
+            splitStatements: false
+            stripComments: false
+      rollback:
+        - sql:
+            sql: DROP TRIGGER IF EXISTS trg_calendar_provider_account_upd ON chatbotia.calendar_provider_account CASCADE;
+            sql: DROP INDEX IF EXISTS idx_calendar_provider_account_client_provider_active CASCADE;
+            sql: DROP INDEX IF EXISTS idx_calendar_provider_account_active CASCADE;
+            sql: DROP INDEX IF EXISTS idx_calendar_provider_account_provider CASCADE;
+            sql: DROP INDEX IF EXISTS idx_calendar_provider_account_client CASCADE;
+            sql: DROP TABLE IF EXISTS chatbotia.calendar_provider_account CASCADE;

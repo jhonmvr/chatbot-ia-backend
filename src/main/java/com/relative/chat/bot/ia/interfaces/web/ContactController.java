@@ -529,9 +529,37 @@ public class ContactController {
      * Obtener estadísticas de contactos
      * GET /api/contacts/stats/client/{clientId}
      */
+    @Operation(
+        summary = "Obtener estadísticas de contactos",
+        description = "Obtiene estadísticas agregadas de los contactos de un cliente específico, incluyendo totales, VIPs, activos, bloqueados e interacciones"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Estadísticas obtenidas exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "stats": {
+                        "totalContacts": 150,
+                        "vipContacts": 25,
+                        "activeContacts": 140,
+                        "blockedContacts": 5,
+                        "totalInteractions": 1250
+                      }
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "400", description = "ID de cliente inválido"),
+        @ApiResponse(responseCode = "404", description = "Cliente no encontrado"),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping("/stats/client/{clientId}")
     public ResponseEntity<Map<String, Object>> getContactStats(
-        @Parameter(description = "UUID del cliente", required = true)
+        @Parameter(description = "UUID del cliente", required = true, example = "a1234567-e89b-12d3-a456-426614174000")
         @PathVariable String clientId
     ) {
         try {

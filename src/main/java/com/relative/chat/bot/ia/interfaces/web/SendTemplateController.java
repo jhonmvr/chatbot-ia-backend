@@ -79,7 +79,20 @@ public class SendTemplateController {
                     """)
             )
         ),
-        @ApiResponse(responseCode = "404", description = "Contacto o teléfono no encontrado")
+        @ApiResponse(
+            responseCode = "404",
+            description = "Contacto o teléfono no encontrado",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "Contacto no encontrado: c1234567-e89b-12d3-a456-426614174000"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
     })
     @PostMapping(value = "/single", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> sendTemplateToContact(
@@ -204,17 +217,63 @@ public class SendTemplateController {
      */
     @Operation(
         summary = "Enviar plantilla por número de teléfono",
-        description = "Envía un mensaje con plantilla directamente a un número de teléfono"
+        description = "Envía un mensaje con plantilla directamente a un número de teléfono sin necesidad de tener un contacto creado previamente. Útil para envíos puntuales."
     )
     @ApiResponses(value = {
         @ApiResponse(
             responseCode = "200",
-            description = "Plantilla enviada exitosamente"
+            description = "Plantilla enviada exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "messageId": "550e8400-e29b-41d4-a716-446655440000",
+                      "externalId": "wamid.xxx",
+                      "templateName": "welcome_message",
+                      "toNumber": "+525512345678",
+                      "sentAt": "2024-12-19T10:30:00Z"
+                    }
+                    """)
+            )
         ),
-        @ApiResponse(responseCode = "400", description = "Datos inválidos")
+        @ApiResponse(
+            responseCode = "400",
+            description = "Datos inválidos",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "clientId, phoneId, toNumber y templateName son requeridos"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "404", description = "Teléfono no encontrado"),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
     })
     @PostMapping(value = "/by-phone", consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> sendTemplateByPhone(
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Datos para envío de plantilla por número de teléfono",
+            required = true,
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "clientId": "a1234567-e89b-12d3-a456-426614174000",
+                      "phoneId": "b1234567-e89b-12d3-a456-426614174000",
+                      "toNumber": "+525512345678",
+                      "templateName": "welcome_message",
+                      "parameterFormat": "NAMED",
+                      "parameters": {
+                        "first_name": "Juan"
+                      }
+                    }
+                    """)
+            )
+        )
         @RequestBody Map<String, Object> request
     ) {
         try {
@@ -288,12 +347,44 @@ public class SendTemplateController {
      */
     @Operation(
         summary = "Validar plantilla",
-        description = "Valida que una plantilla esté disponible y aprobada para envío"
+        description = "Valida que una plantilla esté disponible y aprobada para envío. Verifica el estado de la plantilla antes de intentar enviarla."
     )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Validación completada",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "templateName": "welcome_message",
+                      "isValid": true,
+                      "message": "Plantilla válida para envío"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Parámetros inválidos",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "phoneId es requerido"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping("/validate/{templateName}")
     public ResponseEntity<Map<String, Object>> validateTemplate(
-        @Parameter(description = "Nombre de la plantilla", required = true)
+        @Parameter(description = "Nombre de la plantilla a validar", required = true, example = "welcome_message")
         @PathVariable String templateName,
+        @Parameter(description = "UUID del teléfono cliente", required = true)
         @RequestParam String phoneId
     ) {
         try {

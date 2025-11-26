@@ -31,7 +31,7 @@ public class ReceiveWhatsAppMessage {
     private final ClientRepository clientRepository;
     private final MessageRepository messageRepository;
     private final GetOrCreateContact getOrCreateContact;
-    private final StartConversation startConversation;
+    private final GetOrCreateConversation getOrCreateConversation;
     private final ProcessMessageWithAI processMessageWithAI;
     private final SendMessage sendMessage;
     private final GetKnowledgeBase getKnowledgeBase;
@@ -69,15 +69,17 @@ public class ReceiveWhatsAppMessage {
                     command.channel()
             );
             
-            // 3. Obtener o crear conversación
-            // TODO: Buscar conversación abierta existente
-            Conversation conversation = startConversation.handle(
+            // 3. Obtener o crear conversación (reutiliza conversaciones abiertas)
+            Conversation conversation = getOrCreateConversation.handle(
                     client.id(),
                     contact.id(),
                     null, // phoneId - obtener del comando si está disponible
                     command.channel(),
                     "Conversación con " + (command.contactName() != null ? command.contactName() : command.contactPhone())
             );
+            
+            log.info("Usando conversación: {} (status: {})", 
+                    conversation.id().value(), conversation.status());
             
             // 4. Guardar mensaje entrante
             Message incomingMessage = createIncomingMessage(command, client, conversation, contact);
@@ -92,11 +94,13 @@ public class ReceiveWhatsAppMessage {
                 return MessageResponse.error("No hay Knowledge Base configurado para este cliente");
             }
             
-            // 6. Generar respuesta con IA
+            // 6. Generar respuesta con IA (con soporte para agendamiento)
             String aiResponse = processMessageWithAI.handle(
                     command.content(),
                     conversation.id(),
-                    namespace
+                    namespace,
+                    client.id(),
+                    contact.id()
             );
             
             // 7. Enviar respuesta

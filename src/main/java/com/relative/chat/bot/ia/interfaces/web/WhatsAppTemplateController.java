@@ -494,9 +494,51 @@ public class WhatsAppTemplateController {
      * GET /api/whatsapp-templates/status/{status}
      * Si status es "all" o no se proporciona, devuelve todas las plantillas
      */
+    @Operation(
+        summary = "Listar plantillas por estado",
+        description = "Obtiene todas las plantillas filtradas por estado. Estados válidos: APPROVED, PENDING, REJECTED, DISABLED, DRAFT. Use 'all' o omita el parámetro para obtener todas las plantillas."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Plantillas obtenidas exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "templates": [
+                        {
+                          "id": "550e8400-e29b-41d4-a716-446655440000",
+                          "name": "welcome_message",
+                          "category": "MARKETING",
+                          "status": "APPROVED",
+                          "language": "es_ES"
+                        }
+                      ],
+                      "count": 1
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Estado inválido",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "Estado inválido: INVALID_STATUS"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping(value = {"/status/{status}", "/status"})
     public ResponseEntity<Map<String, Object>> getTemplatesByStatus(
-        @Parameter(description = "Estado de la plantilla (opcional). Use 'all' para obtener todas")
+        @Parameter(description = "Estado de la plantilla (opcional). Valores: APPROVED, PENDING, REJECTED, DISABLED, DRAFT, o 'all' para obtener todas", example = "APPROVED")
         @PathVariable(required = false) String status
     ) {
         try {
@@ -538,9 +580,49 @@ public class WhatsAppTemplateController {
      * Listar plantillas por categoría
      * GET /api/whatsapp-templates/category/{category}
      */
+    @Operation(
+        summary = "Listar plantillas por categoría",
+        description = "Obtiene todas las plantillas de una categoría específica. Categorías válidas: AUTHENTICATION, MARKETING, UTILITY."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Plantillas obtenidas exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "templates": [
+                        {
+                          "id": "550e8400-e29b-41d4-a716-446655440000",
+                          "name": "otp_verification",
+                          "category": "AUTHENTICATION",
+                          "status": "APPROVED"
+                        }
+                      ]
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Categoría inválida",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "Error al obtener plantillas por categoría: Categoría inválida"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping("/category/{category}")
     public ResponseEntity<Map<String, Object>> getTemplatesByCategory(
-        @Parameter(description = "Categoría de la plantilla", required = true)
+        @Parameter(description = "Categoría de la plantilla. Valores: AUTHENTICATION, MARKETING, UTILITY", required = true, example = "AUTHENTICATION")
         @PathVariable String category
     ) {
         try {
@@ -570,6 +652,34 @@ public class WhatsAppTemplateController {
      * Obtener plantillas listas para usar
      * GET /api/whatsapp-templates/ready
      */
+    @Operation(
+        summary = "Obtener plantillas listas para usar",
+        description = "Obtiene todas las plantillas que están aprobadas y listas para ser enviadas. Estas son plantillas con estado APPROVED y que pueden ser enviadas."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Plantillas listas obtenidas exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "templates": [
+                        {
+                          "id": "550e8400-e29b-41d4-a716-446655440000",
+                          "name": "welcome_message",
+                          "category": "MARKETING",
+                          "status": "APPROVED",
+                          "canBeSent": true
+                        }
+                      ]
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
     @GetMapping("/ready")
     public ResponseEntity<Map<String, Object>> getReadyTemplates() {
         try {
@@ -597,6 +707,38 @@ public class WhatsAppTemplateController {
      * Sincronizar todas las plantillas pendientes
      * POST /api/whatsapp-templates/sync-all
      */
+    @Operation(
+        summary = "Sincronizar todas las plantillas pendientes",
+        description = "Sincroniza todas las plantillas que están en estado DRAFT con Meta WhatsApp Business API para su revisión y aprobación. Este proceso puede tomar tiempo dependiendo del número de plantillas."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Sincronización iniciada exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "message": "Sincronización de plantillas pendientes iniciada"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Error al sincronizar plantillas",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "Error al sincronizar plantillas: [detalle del error]"
+                    }
+                    """)
+            )
+        )
+    })
     @PostMapping("/sync-all")
     public ResponseEntity<Map<String, Object>> syncAllPendingTemplates() {
         try {
@@ -620,6 +762,38 @@ public class WhatsAppTemplateController {
      * Actualizar estados de todas las plantillas sincronizadas
      * POST /api/whatsapp-templates/update-all-statuses
      */
+    @Operation(
+        summary = "Actualizar estados de todas las plantillas sincronizadas",
+        description = "Consulta Meta WhatsApp Business API para actualizar el estado de todas las plantillas que están sincronizadas con Meta. Esto actualiza estados como APPROVED, PENDING, REJECTED, etc."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Actualización de estados iniciada exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "message": "Actualización de estados de plantillas iniciada"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Error al actualizar estados",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "Error al actualizar estados: [detalle del error]"
+                    }
+                    """)
+            )
+        )
+    })
     @PostMapping("/update-all-statuses")
     public ResponseEntity<Map<String, Object>> updateAllTemplateStatuses() {
         try {

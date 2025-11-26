@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -69,8 +70,33 @@ public class ConversationController {
                     """)
             )
         ),
-        @ApiResponse(responseCode = "400", description = "ID de conversación inválido"),
-        @ApiResponse(responseCode = "404", description = "Conversación no encontrada")
+        @ApiResponse(
+            responseCode = "400",
+            description = "ID de conversación inválido",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "ID de conversación inválido: formato UUID incorrecto"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Conversación no encontrada",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "Conversación no encontrada"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
     })
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getConversation(
@@ -110,9 +136,18 @@ public class ConversationController {
             
             return ResponseEntity.ok(result);
             
+        } catch (IllegalArgumentException e) {
+            log.error("Error de validación: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "status", "error",
+                "message", "ID de conversación inválido: " + e.getMessage()
+            ));
         } catch (Exception e) {
             log.error("Error al obtener conversación: {}", e.getMessage(), e);
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "status", "error",
+                "message", "Error al obtener conversación: " + e.getMessage()
+            ));
         }
     }
     

@@ -44,6 +44,19 @@ public class ConversationRepositoryAdapter implements ConversationRepository {
     }
     
     @Override
+    public Optional<Conversation> findOpenByClientAndContactAndChannel(
+            UuidId<com.relative.chat.bot.ia.domain.identity.Client> clientId,
+            UuidId<com.relative.chat.bot.ia.domain.messaging.Contact> contactId,
+            com.relative.chat.bot.ia.domain.types.Channel channel
+    ) {
+        return repo.findFirstOpenByClientAndContactAndChannel(
+                clientId.value(),
+                contactId.value(),
+                channel.name()
+        ).map(ConversationRepositoryAdapter::toDomain);
+    }
+    
+    @Override
     public void save(Conversation d) {
         ConversationEntity e = new ConversationEntity();
         
@@ -75,5 +88,20 @@ public class ConversationRepositoryAdapter implements ConversationRepository {
         e.setUpdatedAt(java.time.OffsetDateTime.now());
         
         repo.save(e);
+    }
+    
+    @Override
+    public java.util.List<Conversation> findAllOpen() {
+        return repo.findAllOpen().stream()
+                .map(ConversationRepositoryAdapter::toDomain)
+                .toList();
+    }
+    
+    @Override
+    public java.util.List<Conversation> findOpenInactiveSince(java.time.Instant since) {
+        java.time.OffsetDateTime sinceOffset = since.atOffset(ZoneOffset.UTC);
+        return repo.findOpenInactiveSince(sinceOffset).stream()
+                .map(ConversationRepositoryAdapter::toDomain)
+                .toList();
     }
 }

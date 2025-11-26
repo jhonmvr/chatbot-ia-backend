@@ -122,9 +122,10 @@ public class ManageCalendarProviderAccount {
     
     /**
      * Obtiene todas las cuentas de un cliente
+     * Acepta tanto UUID como código de cliente (ej: "CLI-001")
      */
     public List<CalendarProviderAccountResponse> findByClientId(String clientId) {
-        UuidId<Client> id = UuidId.of(java.util.UUID.fromString(clientId));
+        UuidId<Client> id = resolveClientId(clientId);
         return repository.findByClientId(id)
                 .stream()
                 .map(this::toResponse)
@@ -133,9 +134,10 @@ public class ManageCalendarProviderAccount {
     
     /**
      * Obtiene cuentas activas de un cliente
+     * Acepta tanto UUID como código de cliente (ej: "CLI-001")
      */
     public List<CalendarProviderAccountResponse> findActiveByClientId(String clientId) {
-        UuidId<Client> id = UuidId.of(java.util.UUID.fromString(clientId));
+        UuidId<Client> id = resolveClientId(clientId);
         return repository.findActiveByClientId(id)
                 .stream()
                 .map(this::toResponse)
@@ -144,11 +146,27 @@ public class ManageCalendarProviderAccount {
     
     /**
      * Obtiene cuenta activa por cliente y proveedor
+     * Acepta tanto UUID como código de cliente (ej: "CLI-001")
      */
     public Optional<CalendarProviderAccountResponse> findActiveByClientIdAndProvider(String clientId, CalendarProvider provider) {
-        UuidId<Client> id = UuidId.of(java.util.UUID.fromString(clientId));
+        UuidId<Client> id = resolveClientId(clientId);
         return repository.findActiveByClientIdAndProvider(id, provider)
                 .map(this::toResponse);
+    }
+    
+    /**
+     * Resuelve un clientId que puede ser UUID o código de cliente
+     */
+    private UuidId<Client> resolveClientId(String clientId) {
+        // Intentar parsear como UUID primero
+        try {
+            return UuidId.of(java.util.UUID.fromString(clientId));
+        } catch (IllegalArgumentException e) {
+            // Si no es UUID, buscar por código
+            Client client = clientRepository.findByCode(clientId)
+                    .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado con código o ID: " + clientId));
+            return client.id();
+        }
     }
     
     /**

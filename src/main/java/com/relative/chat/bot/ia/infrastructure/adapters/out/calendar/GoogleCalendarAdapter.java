@@ -296,17 +296,34 @@ public class GoogleCalendarAdapter implements CalendarService {
                 .map(attendee -> (String) attendee.get("email"))
                 .toList();
         
-        @SuppressWarnings("unchecked")
-        Map<String, Object> created = (Map<String, Object>) googleEvent.getOrDefault("created", Map.of());
-        @SuppressWarnings("unchecked")
-        Map<String, Object> updated = (Map<String, Object>) googleEvent.getOrDefault("updated", Map.of());
+        // Los campos "created" y "updated" en Google Calendar API son strings (RFC3339), no objetos Map
+        Instant createdAt = null;
+        Object createdObj = googleEvent.get("created");
+        if (createdObj != null) {
+            if (createdObj instanceof String) {
+                createdAt = parseGoogleDateTime((String) createdObj);
+            } else if (createdObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> created = (Map<String, Object>) createdObj;
+                if (created.containsKey("dateTime")) {
+                    createdAt = parseGoogleDateTime((String) created.get("dateTime"));
+                }
+            }
+        }
         
-        Instant createdAt = created.containsKey("dateTime") 
-                ? parseGoogleDateTime((String) created.get("dateTime"))
-                : null;
-        Instant updatedAt = updated.containsKey("dateTime")
-                ? parseGoogleDateTime((String) updated.get("dateTime"))
-                : null;
+        Instant updatedAt = null;
+        Object updatedObj = googleEvent.get("updated");
+        if (updatedObj != null) {
+            if (updatedObj instanceof String) {
+                updatedAt = parseGoogleDateTime((String) updatedObj);
+            } else if (updatedObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> updated = (Map<String, Object>) updatedObj;
+                if (updated.containsKey("dateTime")) {
+                    updatedAt = parseGoogleDateTime((String) updated.get("dateTime"));
+                }
+            }
+        }
         
         return new CalendarEventResponse(
                 eventId,
