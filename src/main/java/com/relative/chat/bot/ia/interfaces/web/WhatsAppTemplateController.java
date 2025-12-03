@@ -2,7 +2,9 @@ package com.relative.chat.bot.ia.interfaces.web;
 
 import com.relative.chat.bot.ia.application.services.WhatsAppTemplateService;
 import com.relative.chat.bot.ia.domain.common.UuidId;
+import com.relative.chat.bot.ia.domain.identity.Client;
 import com.relative.chat.bot.ia.domain.messaging.*;
+import com.relative.chat.bot.ia.domain.ports.identity.ClientRepository;
 import com.relative.chat.bot.ia.domain.ports.messaging.WhatsAppTemplateRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -36,6 +38,7 @@ public class WhatsAppTemplateController {
     
     private final WhatsAppTemplateService templateService;
     private final WhatsAppTemplateRepository templateRepository;
+    private final ClientRepository clientRepository;
     
     /**
      * Crear una nueva plantilla de WhatsApp
@@ -436,6 +439,141 @@ public class WhatsAppTemplateController {
     }
     
     /**
+     * Actualizar plantilla
+     * PUT /api/whatsapp-templates/{id}
+     */
+    @Operation(
+        summary = "Actualizar plantilla de WhatsApp",
+        description = "Actualiza una plantilla existente. Solo se pueden actualizar plantillas en estado DRAFT. Los campos opcionales que no se envíen mantendrán sus valores actuales."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Plantilla actualizada exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "templateId": "550e8400-e29b-41d4-a716-446655440000",
+                      "message": "Plantilla actualizada exitosamente"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Datos inválidos o plantilla no está en estado DRAFT",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "Solo se pueden actualizar plantillas en estado DRAFT. Estado actual: APPROVED"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "404",
+            description = "Plantilla no encontrada",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "Plantilla no encontrada: 550e8400-e29b-41d4-a716-446655440000"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
+    @PutMapping(value = "/{id}", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> updateTemplate(
+        @Parameter(description = "UUID de la plantilla a actualizar", required = true, example = "550e8400-e29b-41d4-a716-446655440000")
+        @PathVariable String id,
+        @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "Datos de la plantilla a actualizar. Todos los campos son opcionales.",
+            required = true,
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "name": "otp_verification_updated",
+                      "language": "es_ES",
+                      "parameterFormat": "POSITIONAL",
+                      "components": [
+                        {
+                          "type": "BODY",
+                          "text": "Tu código de verificación es: {{1}}. Este código expira en {{2}} minutos."
+                        }
+                      ]
+                    }
+                    """)
+            )
+        )
+        @RequestBody Map<String, Object> request
+    ) {
+        try {
+            UuidId<WhatsAppTemplate> templateId = UuidId.of(UUID.fromString(id));
+            
+            // Obtener valores opcionales del request
+            String name = (String) request.get("name");
+            String language = (String) request.get("language");
+            String parameterFormatStr = (String) request.get("parameterFormat");
+            ParameterFormat parameterFormat = null;
+            if (parameterFormatStr != null) {
+                parameterFormat = ParameterFormat.valueOf(parameterFormatStr);
+            }
+            
+            // Parsear componentes si se proporcionan
+            List<TemplateComponent> components = null;
+            if (request.containsKey("components")) {
+                @SuppressWarnings("unchecked")
+                List<Map<String, Object>> componentsData = (List<Map<String, Object>>) request.get("components");
+                components = parseComponents(componentsData);
+            }
+            
+            // Actualizar plantilla
+            WhatsAppTemplate updatedTemplate = templateService.updateTemplate(
+                templateId,
+                name,
+                language,
+                parameterFormat,
+                components
+            );
+            
+            log.info("Plantilla actualizada exitosamente: {}", id);
+            
+            return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "templateId", updatedTemplate.id().value().toString(),
+                "message", "Plantilla actualizada exitosamente"
+            ));
+            
+        } catch (IllegalStateException e) {
+            log.error("Error de estado: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "status", "error",
+                "message", e.getMessage()
+            ));
+        } catch (IllegalArgumentException e) {
+            log.error("Error de validación: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "status", "error",
+                "message", e.getMessage()
+            ));
+        } catch (Exception e) {
+            log.error("Error al actualizar plantilla: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "status", "error",
+                "message", "Error al actualizar plantilla: " + e.getMessage()
+            ));
+        }
+    }
+    
+    /**
      * Eliminar plantilla
      * DELETE /api/whatsapp-templates/{id}
      */
@@ -809,6 +947,185 @@ public class WhatsAppTemplateController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "status", "error",
                 "message", "Error al actualizar estados: " + e.getMessage()
+            ));
+        }
+    }
+    
+    /**
+     * Filtrar plantillas con múltiples criterios
+     * GET /api/whatsapp-templates/filter
+     */
+    @Operation(
+        summary = "Filtrar plantillas con múltiples criterios",
+        description = "Obtiene plantillas filtradas por clientPhoneId (o clientId), status, category y búsqueda por texto en el nombre. Todos los parámetros son opcionales y se pueden combinar."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Plantillas filtradas obtenidas exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "templates": [
+                        {
+                          "id": "550e8400-e29b-41d4-a716-446655440000",
+                          "clientPhoneId": "a1234567-e89b-12d3-a456-426614174000",
+                          "name": "welcome_message",
+                          "category": "MARKETING",
+                          "status": "APPROVED",
+                          "language": "es_ES",
+                          "canBeSent": true,
+                          "createdAt": "2024-12-01T08:00:00Z"
+                        }
+                      ],
+                      "count": 1,
+                      "filters": {
+                        "clientPhoneId": "a1234567-e89b-12d3-a456-426614174000",
+                        "status": "APPROVED",
+                        "category": "MARKETING",
+                        "search": "welcome"
+                      }
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Parámetros inválidos",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "error",
+                      "message": "Estado inválido: INVALID_STATUS"
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
+    @GetMapping("/filter")
+    public ResponseEntity<Map<String, Object>> filterTemplates(
+        @Parameter(description = "UUID del número de teléfono cliente. Si no se proporciona, se buscan todas las plantillas.", example = "a1234567-e89b-12d3-a456-426614174000")
+        @RequestParam(required = false) String clientPhoneId,
+        @Parameter(description = "UUID del cliente. Alternativa a clientPhoneId. Si se proporciona, busca plantillas de todos los teléfonos del cliente.", example = "550e8400-e29b-41d4-a716-446655440000")
+        @RequestParam(required = false) String clientId,
+        @Parameter(description = "Estado de la plantilla. Valores: APPROVED, PENDING, REJECTED, DISABLED, DRAFT", example = "APPROVED")
+        @RequestParam(required = false) String status,
+        @Parameter(description = "Categoría de la plantilla. Valores: AUTHENTICATION, MARKETING, UTILITY", example = "MARKETING")
+        @RequestParam(required = false) String category,
+        @Parameter(description = "Texto para buscar en el nombre de la plantilla (búsqueda parcial, case-insensitive)", example = "welcome")
+        @RequestParam(required = false) String search,
+        @Parameter(description = "Texto para buscar en el nombre de la plantilla (alias de 'search')", example = "welcome")
+        @RequestParam(required = false) String query
+    ) {
+        try {
+            // Determinar el texto de búsqueda (search o query)
+            String searchText = search != null ? search : query;
+            if (searchText != null && searchText.trim().isEmpty()) {
+                searchText = null;
+            }
+            
+            // Preparar parámetros para la consulta a nivel de base de datos
+            UuidId<ClientPhone> clientPhoneIdParam = null;
+            Client clientParam = null;
+            TemplateStatus statusParam = null;
+            TemplateCategory categoryParam = null;
+            
+            // Validar y convertir clientPhoneId
+            if (clientPhoneId != null && !clientPhoneId.trim().isEmpty()) {
+                try {
+                    clientPhoneIdParam = UuidId.of(UUID.fromString(clientPhoneId));
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                        "status", "error",
+                        "message", "clientPhoneId inválido: " + clientPhoneId
+                    ));
+                }
+            }
+            
+            // Validar y convertir clientId
+            if (clientId != null && !clientId.trim().isEmpty()) {
+                try {
+                    UuidId<Client> clientUuidId = UuidId.of(UUID.fromString(clientId));
+                    clientParam = clientRepository.findById(clientUuidId)
+                        .orElseThrow(() -> new IllegalArgumentException("Cliente no encontrado: " + clientId));
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                        "status", "error",
+                        "message", e.getMessage()
+                    ));
+                }
+            }
+            
+            // Validar y convertir status
+            if (status != null && !status.trim().isEmpty()) {
+                try {
+                    statusParam = TemplateStatus.valueOf(status.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                        "status", "error",
+                        "message", "Estado inválido: " + status + ". Valores válidos: APPROVED, PENDING, REJECTED, DISABLED, DRAFT"
+                    ));
+                }
+            }
+            
+            // Validar y convertir category
+            if (category != null && !category.trim().isEmpty()) {
+                try {
+                    categoryParam = TemplateCategory.valueOf(category.toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    return ResponseEntity.badRequest().body(Map.of(
+                        "status", "error",
+                        "message", "Categoría inválida: " + category + ". Valores válidos: AUTHENTICATION, MARKETING, UTILITY"
+                    ));
+                }
+            }
+            
+            // Ejecutar consulta a nivel de base de datos
+            List<WhatsAppTemplate> templates = templateService.filterTemplates(
+                clientPhoneIdParam,
+                clientParam,
+                statusParam,
+                categoryParam,
+                searchText
+            );
+            
+            // Convertir a DTOs
+            List<Map<String, Object>> templateDtos = templates.stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+            
+            // Construir respuesta con información de filtros aplicados
+            Map<String, Object> response = new HashMap<>();
+            response.put("status", "success");
+            response.put("templates", templateDtos);
+            response.put("count", templateDtos.size());
+            
+            // Agregar información de filtros aplicados
+            Map<String, Object> filtersApplied = new HashMap<>();
+            if (clientPhoneId != null) filtersApplied.put("clientPhoneId", clientPhoneId);
+            if (clientId != null) filtersApplied.put("clientId", clientId);
+            if (status != null) filtersApplied.put("status", status);
+            if (category != null) filtersApplied.put("category", category);
+            if (searchText != null) filtersApplied.put("search", searchText);
+            response.put("filters", filtersApplied);
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Error de validación: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "status", "error",
+                "message", e.getMessage()
+            ));
+        } catch (Exception e) {
+            log.error("Error al filtrar plantillas: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "status", "error",
+                "message", "Error al filtrar plantillas: " + e.getMessage()
             ));
         }
     }

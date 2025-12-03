@@ -107,4 +107,23 @@ public interface WhatsAppTemplateRepository {
      * Obtiene todas las plantillas
      */
     List<WhatsAppTemplate> findAll();
+    
+    /**
+     * Busca plantillas con filtros múltiples
+     * Todos los parámetros son opcionales (pueden ser null)
+     * 
+     * @param clientPhoneId ID del teléfono del cliente (opcional)
+     * @param clientId ID del cliente (opcional, busca en todos los teléfonos del cliente)
+     * @param status Estado de la plantilla (opcional)
+     * @param category Categoría de la plantilla (opcional)
+     * @param search Texto para buscar en el nombre (opcional, búsqueda parcial)
+     * @return Lista de plantillas que coinciden con los filtros
+     */
+    List<WhatsAppTemplate> findByFilters(
+        UuidId<ClientPhone> clientPhoneId,
+        com.relative.chat.bot.ia.domain.identity.Client clientId,
+        TemplateStatus status,
+        TemplateCategory category,
+        String search
+    );
 }

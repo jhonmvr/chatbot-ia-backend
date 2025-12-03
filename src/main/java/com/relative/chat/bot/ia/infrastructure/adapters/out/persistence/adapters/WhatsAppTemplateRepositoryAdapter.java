@@ -160,4 +160,30 @@ public class WhatsAppTemplateRepositoryAdapter implements WhatsAppTemplateReposi
                 .map(WhatsAppTemplateMapper::toDomain)
                 .collect(Collectors.toList());
     }
+    
+    @Override
+    public List<WhatsAppTemplate> findByFilters(
+        com.relative.chat.bot.ia.domain.common.UuidId<ClientPhone> clientPhoneId,
+        com.relative.chat.bot.ia.domain.identity.Client clientId,
+        com.relative.chat.bot.ia.domain.messaging.TemplateStatus status,
+        com.relative.chat.bot.ia.domain.messaging.TemplateCategory category,
+        String search
+    ) {
+        java.util.UUID clientPhoneIdValue = clientPhoneId != null ? clientPhoneId.value() : null;
+        java.util.UUID clientIdValue = clientId != null ? clientId.id().value() : null;
+        String statusValue = status != null ? status.name() : null;
+        String categoryValue = category != null ? category.name() : null;
+        String searchValue = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
+        
+        return whatsAppTemplateJpa.findByFilters(
+            clientPhoneIdValue,
+            clientIdValue,
+            statusValue,
+            categoryValue,
+            searchValue
+        )
+        .stream()
+        .map(WhatsAppTemplateMapper::toDomain)
+        .collect(Collectors.toList());
+    }
 }

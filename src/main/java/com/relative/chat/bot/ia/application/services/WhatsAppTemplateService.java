@@ -272,6 +272,28 @@ public class WhatsAppTemplateService {
     }
     
     /**
+     * Busca plantillas con filtros múltiples a nivel de base de datos
+     * Todos los parámetros son opcionales
+     */
+    @Transactional(readOnly = true)
+    public List<WhatsAppTemplate> filterTemplates(
+        UuidId<ClientPhone> clientPhoneId,
+        com.relative.chat.bot.ia.domain.identity.Client clientId,
+        TemplateStatus status,
+        TemplateCategory category,
+        String search
+    ) {
+        log.info("Filtrando plantillas - clientPhoneId: {}, clientId: {}, status: {}, category: {}, search: {}", 
+            clientPhoneId != null ? clientPhoneId.value() : null,
+            clientId != null ? clientId.id().value() : null,
+            status,
+            category,
+            search);
+        
+        return templateRepository.findByFilters(clientPhoneId, clientId, status, category, search);
+    }
+    
+    /**
      * Obtiene plantillas listas para usar
      */
     public List<WhatsAppTemplate> getReadyTemplates() {

@@ -107,3 +107,19 @@ databaseChangeLog:
             sql: DROP INDEX IF EXISTS idx_calendar_provider_account_provider CASCADE;
             sql: DROP INDEX IF EXISTS idx_calendar_provider_account_client CASCADE;
             sql: DROP TABLE IF EXISTS chatbotia.calendar_provider_account CASCADE;
+
+  - changeSet:
+      id: 9
+      author: system
+      changes:
+        - sqlFile:
+            path: classpath:db/migration/V9__create_api_key_table.sql
+            splitStatements: false
+            stripComments: false
+      rollback:
+        - sql:
+            sql: DROP INDEX IF EXISTS idx_api_key_client_status CASCADE;
+            sql: DROP INDEX IF EXISTS idx_api_key_status CASCADE;
+            sql: DROP INDEX IF EXISTS idx_api_key_api_key CASCADE;
+            sql: DROP INDEX IF EXISTS idx_api_key_client_id CASCADE;
+            sql: DROP TABLE IF EXISTS chatbotia.api_key CASCADE;

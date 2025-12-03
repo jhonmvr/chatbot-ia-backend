@@ -95,4 +95,41 @@ public interface WhatsAppTemplateJpa extends JpaRepository<WhatsAppTemplateEntit
      */
     @Query("SELECT wt FROM WhatsAppTemplateEntity wt WHERE wt.metaTemplateId IS NOT NULL AND wt.status IN ('PENDING', 'APPROVED')")
     List<WhatsAppTemplateEntity> findTemplatesNeedingStatusUpdate();
+    
+    /**
+     * Busca plantillas con filtros múltiples a nivel de base de datos
+     * Todos los parámetros son opcionales (pueden ser null)
+     * Usa consulta nativa para hacer cast explícito del campo name a VARCHAR
+     */
+    @Query(value = """
+        SELECT 
+            wt.id,
+            wt.client_phone_id,
+            wt.name,
+            wt.category,
+            wt.language,
+            wt.status,
+            wt.parameter_format,
+            wt.meta_template_id,
+            wt.quality_rating,
+            wt.rejection_reason,
+            wt.components,
+            wt.created_at,
+            wt.updated_at
+        FROM chatbotia.whatsapp_templates wt
+        JOIN chatbotia.client_phone cp ON cp.id = wt.client_phone_id
+        WHERE (:clientPhoneId IS NULL OR cp.id = :clientPhoneId)
+        AND (:clientId IS NULL OR cp.client_id = :clientId)
+        AND (:status IS NULL OR wt.status = :status)
+        AND (:category IS NULL OR wt.category = :category)
+        AND (:search IS NULL OR LOWER(CAST(wt.name AS VARCHAR)) LIKE LOWER('%' || CAST(:search AS VARCHAR) || '%'))
+        ORDER BY wt.created_at DESC
+        """, nativeQuery = true)
+    List<WhatsAppTemplateEntity> findByFilters(
+        @Param("clientPhoneId") UUID clientPhoneId,
+        @Param("clientId") UUID clientId,
+        @Param("status") String status,
+        @Param("category") String category,
+        @Param("search") String search
+    );
 }
