@@ -242,12 +242,16 @@ public class MetaWhatsAppAdapter implements WhatsAppService {
         if (accessToken.isEmpty()) {
             throw new IllegalStateException("Access token de Meta WhatsApp no está configurado");
         }
-        
-        String fullApiUrl = config.getFullApiUrl();
+        String apiVersion = config.getConfigValueOrDefault("api_version", "");
+        String fullApiUrl;
+        if (apiVersion.isEmpty()) {
+            fullApiUrl = config.getFullApiUrl() ;
+        }else{
+            fullApiUrl = config.getApiBaseUrl() + "/" + apiVersion;
+        }
         if (fullApiUrl.isEmpty()) {
             throw new IllegalStateException("URL de API de Meta WhatsApp no está configurada");
         }
-        
         return WebClient.builder()
                 .baseUrl(fullApiUrl)
                 .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
