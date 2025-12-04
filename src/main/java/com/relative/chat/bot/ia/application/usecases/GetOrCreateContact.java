@@ -37,8 +37,11 @@ public class GetOrCreateContact {
             String displayName,
             Channel channel
     ) {
+        // Normalizar el número de teléfono a formato E164
+        String normalizedPhone = normalizeToE164(phoneNumber);
+        
         // Buscar contacto existente por cliente y teléfono
-        Optional<Contact> existingContact = contactRepository.findByClientAndPhone(clientId, phoneNumber);
+        Optional<Contact> existingContact = contactRepository.findByClientAndPhone(clientId, normalizedPhone);
         
         if (existingContact.isPresent()) {
             return existingContact.get();
@@ -50,13 +53,45 @@ public class GetOrCreateContact {
                 displayName != null ? displayName : phoneNumber,
                 null, // firstName
                 null, // lastName
-                new PhoneE164(phoneNumber),
+                new PhoneE164(normalizedPhone),
                 null  // email
         );
         
         contactRepository.save(newContact);
         
         return newContact;
+    }
+    
+    /**
+     * Normaliza un número de teléfono al formato E164
+     * - Elimina espacios, guiones, paréntesis y puntos
+     * - Si no tiene prefijo "+", lo agrega
+     * - Si empieza con "00", lo reemplaza con "+"
+     * 
+     * @param phoneNumber Número de teléfono a normalizar
+     * @return Número normalizado en formato E164
+     * @throws IllegalArgumentException si el número está vacío o no es válido
+     */
+    private String normalizeToE164(String phoneNumber) {
+        if (phoneNumber == null || phoneNumber.isBlank()) {
+            throw new IllegalArgumentException("El número de teléfono no puede estar vacío");
+        }
+        
+        // Eliminar espacios, guiones, paréntesis, puntos y otros caracteres no numéricos (excepto +)
+        String cleaned = phoneNumber.replaceAll("[\\s\\-\\(\\)\\.]", "");
+        
+        // Si no empieza con +, agregarlo
+        if (!cleaned.startsWith("+")) {
+            // Si empieza con 00 (formato internacional alternativo), reemplazarlo con +
+            if (cleaned.startsWith("00")) {
+                cleaned = "+" + cleaned.substring(2);
+            } else {
+                // Agregar el prefijo + (asumiendo que ya tiene código de país)
+                cleaned = "+" + cleaned;
+            }
+        }
+        
+        return cleaned;
     }
 }
 
