@@ -285,42 +285,59 @@ public class MetaWhatsAppUnifiedWebhookController {
     
     /**
      * Procesa eventos de actualización de estado de templates
+     * 
+     * Según la documentación de Meta:
+     * https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/message_template_status_update
+     * 
+     * El payload contiene:
+     * - event: El estado del evento (APPROVED, REJECTED, PAUSED, etc.)
+     * - message_template_id: El ID del template en Meta
+     * - message_template_name: El nombre del template
+     * - message_template_language: El idioma del template
+     * - reason: La razón del cambio (puede ser "NONE" o una razón de rechazo)
      */
     @Hidden
     private void processTemplateStatusUpdate(Map<String, Object> value) {
-        log.info("Procesando actualización de estado de template");
+        log.info("Procesando actualización de estado de template: {}", value);
         
         try {
             String templateId = extractTemplateId(value);
-            String newStatus = extractStatus(value);
-            String rejectionReason = extractRejectionReason(value);
+            String event = extractEvent(value);
+            String reason = extractReason(value);
+            String templateName = extractTemplateName(value);
+            String templateLanguage = extractTemplateLanguage(value);
             
-            if (templateId == null || newStatus == null) {
-                log.warn("Datos incompletos para actualización de estado de template");
+            if (templateId == null || event == null) {
+                log.warn("Datos incompletos para actualización de estado de template. TemplateId: {}, Event: {}", 
+                        templateId, event);
                 return;
             }
             
             Optional<WhatsAppTemplate> templateOpt = templateRepository.findByMetaTemplateId(templateId);
             if (templateOpt.isEmpty()) {
-                log.warn("Template no encontrado para Meta ID: {}", templateId);
+                log.warn("Template no encontrado para Meta ID: {} (nombre: {}, idioma: {})", 
+                        templateId, templateName, templateLanguage);
                 return;
             }
             
             WhatsAppTemplate template = templateOpt.get();
-            TemplateStatus mappedStatus = mapMetaStatusToTemplateStatus(newStatus);
+            TemplateStatus mappedStatus = mapMetaStatusToTemplateStatus(event);
             
             WhatsAppTemplate updatedTemplate = template.withStatus(mappedStatus);
             
-            if (mappedStatus == TemplateStatus.REJECTED && rejectionReason != null) {
-                updatedTemplate = updatedTemplate.withRejectionReason(rejectionReason);
+            // Actualizar razón de rechazo solo si el evento es REJECTED y hay una razón
+            // Si reason es "NONE", no guardamos razón de rechazo
+            if (mappedStatus == TemplateStatus.REJECTED && reason != null && !"NONE".equalsIgnoreCase(reason)) {
+                updatedTemplate = updatedTemplate.withRejectionReason(reason);
             } else if (mappedStatus == TemplateStatus.APPROVED) {
+                // Limpiar razón de rechazo cuando se aprueba
                 updatedTemplate = updatedTemplate.withRejectionReason(null);
             }
             
             templateRepository.save(updatedTemplate);
             
-            log.info("Estado de template actualizado: {} -> {} (Meta ID: {})", 
-                template.id().value(), mappedStatus, templateId);
+            log.info("Estado de template actualizado: {} -> {} (Meta ID: {}, Event: {}, Reason: {})", 
+                template.id().value(), mappedStatus, templateId, event, reason);
             
         } catch (Exception e) {
             log.error("Error procesando actualización de estado de template: {}", e.getMessage(), e);
@@ -560,20 +577,85 @@ public class MetaWhatsAppUnifiedWebhookController {
     
     // ==================== MÉTODOS DE EXTRACCIÓN ====================
     
+    /**
+     * Extrae el ID del template desde el payload de message_template_status_update
+     * Campo: message_template_id
+     */
     private String extractTemplateId(Map<String, Object> value) {
         try {
-            return (String) value.get("id");
+            // Según la documentación de Meta, el campo es "message_template_id"
+            String templateId = (String) value.get("message_template_id");
+            if (templateId == null) {
+                // Fallback por compatibilidad
+                templateId = (String) value.get("id");
+            }
+            return templateId;
         } catch (Exception e) {
             log.warn("Error al extraer template ID: {}", e.getMessage());
             return null;
         }
     }
     
-    private String extractStatus(Map<String, Object> value) {
+    /**
+     * Extrae el evento/estado desde el payload de message_template_status_update
+     * Campo: event (APPROVED, REJECTED, PAUSED, etc.)
+     */
+    private String extractEvent(Map<String, Object> value) {
         try {
-            return (String) value.get("status");
+            // Según la documentación de Meta, el campo es "event"
+            String event = (String) value.get("event");
+            if (event == null) {
+                // Fallback por compatibilidad
+                event = (String) value.get("status");
+            }
+            return event;
         } catch (Exception e) {
-            log.warn("Error al extraer status: {}", e.getMessage());
+            log.warn("Error al extraer event: {}", e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Extrae la razón del cambio desde el payload de message_template_status_update
+     * Campo: reason (puede ser "NONE" o una razón de rechazo)
+     */
+    private String extractReason(Map<String, Object> value) {
+        try {
+            // Según la documentación de Meta, el campo es "reason"
+            String reason = (String) value.get("reason");
+            if (reason == null) {
+                // Fallback por compatibilidad
+                reason = (String) value.get("rejection_reason");
+            }
+            return reason;
+        } catch (Exception e) {
+            log.warn("Error al extraer reason: {}", e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Extrae el nombre del template desde el payload
+     * Campo: message_template_name
+     */
+    private String extractTemplateName(Map<String, Object> value) {
+        try {
+            return (String) value.get("message_template_name");
+        } catch (Exception e) {
+            log.debug("Error al extraer template name: {}", e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Extrae el idioma del template desde el payload
+     * Campo: message_template_language
+     */
+    private String extractTemplateLanguage(Map<String, Object> value) {
+        try {
+            return (String) value.get("message_template_language");
+        } catch (Exception e) {
+            log.debug("Error al extraer template language: {}", e.getMessage());
             return null;
         }
     }
@@ -583,15 +665,6 @@ public class MetaWhatsAppUnifiedWebhookController {
             return (String) value.get("quality_score");
         } catch (Exception e) {
             log.warn("Error al extraer quality_score: {}", e.getMessage());
-            return null;
-        }
-    }
-    
-    private String extractRejectionReason(Map<String, Object> value) {
-        try {
-            return (String) value.get("rejection_reason");
-        } catch (Exception e) {
-            log.warn("Error al extraer rejection_reason: {}", e.getMessage());
             return null;
         }
     }
