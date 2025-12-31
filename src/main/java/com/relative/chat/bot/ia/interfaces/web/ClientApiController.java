@@ -2333,11 +2333,31 @@ public class ClientApiController {
         dto.put("category", template.category().name());
         dto.put("status", template.status().name());
         dto.put("language", template.language());
+        dto.put("parameterFormat", template.parameterFormat() != null ? template.parameterFormat().name() : null);
+        dto.put("qualityRating", template.qualityRating().name());
         dto.put("canBeSent", template.canBeSent());
+        dto.put("isSyncedWithMeta", template.isSyncedWithMeta());
         dto.put("createdAt", template.createdAt());
+        dto.put("updatedAt", template.updatedAt());
+        
         if (template.metaTemplateId() != null) {
             dto.put("metaTemplateId", template.metaTemplateId());
         }
+        
+        // Agregar información de rechazo si existe
+        if (template.rejectionReason() != null) {
+            dto.put("rejectionReason", template.rejectionReason());
+        }
+        if (template.rejectionCode() != null) {
+            dto.put("rejectionCode", template.rejectionCode());
+        }
+        if (template.rejectionDetails() != null && !template.rejectionDetails().isEmpty()) {
+            dto.put("rejectionDetails", template.rejectionDetails());
+        }
+        if (template.rejectedAt() != null) {
+            dto.put("rejectedAt", template.rejectedAt());
+        }
+        
         return dto;
     }
     
@@ -2349,16 +2369,31 @@ public class ClientApiController {
         dto.put("status", template.status().name());
         dto.put("language", template.language());
         dto.put("parameterFormat", template.parameterFormat() != null ? template.parameterFormat().name() : null);
+        dto.put("qualityRating", template.qualityRating().name());
         dto.put("canBeSent", template.canBeSent());
+        dto.put("isSyncedWithMeta", template.isSyncedWithMeta());
         dto.put("components", template.components());
         dto.put("createdAt", template.createdAt());
         dto.put("updatedAt", template.updatedAt());
+        
         if (template.metaTemplateId() != null) {
             dto.put("metaTemplateId", template.metaTemplateId());
         }
+        
+        // Agregar información de rechazo si existe
         if (template.rejectionReason() != null) {
             dto.put("rejectionReason", template.rejectionReason());
         }
+        if (template.rejectionCode() != null) {
+            dto.put("rejectionCode", template.rejectionCode());
+        }
+        if (template.rejectionDetails() != null && !template.rejectionDetails().isEmpty()) {
+            dto.put("rejectionDetails", template.rejectionDetails());
+        }
+        if (template.rejectedAt() != null) {
+            dto.put("rejectedAt", template.rejectedAt());
+        }
+        
         return dto;
     }
     

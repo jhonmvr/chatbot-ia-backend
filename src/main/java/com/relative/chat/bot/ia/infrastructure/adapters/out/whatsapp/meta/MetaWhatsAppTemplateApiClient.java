@@ -64,7 +64,7 @@ public class MetaWhatsAppTemplateApiClient {
             .build();
         
         return webClient.get()
-            .uri("/{apiVersion}/{templateId}?fields=status,quality_score", apiVersion, templateId)
+            .uri("/{apiVersion}/{templateId}?fields=status,quality_score,rejected_reason", apiVersion, templateId)
             .retrieve()
             .bodyToMono(MetaTemplateStatusResponse.class)
             .timeout(Duration.ofSeconds(15))
@@ -433,8 +433,42 @@ public class MetaWhatsAppTemplateApiClient {
     
     /**
      * Respuesta de estado de plantilla
+     * 
+     * Según la documentación de Meta:
+     * https://developers.facebook.com/documentation/business-messaging/whatsapp/reference/whatsapp-business-account/template-api
+     * 
+     * El campo quality_score es un objeto con la estructura:
+     * {
+     *   "quality_score": {
+     *     "score": "HIGH" | "MEDIUM" | "LOW" | null
+     *   }
+     * }
+     * 
+     * El campo rejection_reason contiene el motivo del rechazo cuando el template
+     * está en estado REJECTED. Puede ser null si el template no fue rechazado.
+     * 
+     * Nota: quality_score puede ser null si no está disponible aún.
      */
-    public record MetaTemplateStatusResponse(String id, String status, String quality_score) {}
+    public record MetaTemplateStatusResponse(
+        String id, 
+        String status, 
+        QualityScore quality_score,  // Puede ser null
+        String rejected_reason       // Puede ser null, motivo del rechazo
+    ) {
+        /**
+         * Objeto que representa el quality_score de Meta
+         * El campo score puede ser null si la calidad aún no ha sido evaluada
+         */
+        public record QualityScore(String score) {}
+        
+        /**
+         * Método helper para obtener el score como String (puede ser null)
+         * Extrae el valor del campo score del objeto quality_score
+         */
+        public String qualityScoreValue() {
+            return quality_score != null ? quality_score.score() : null;
+        }
+    }
     
     /**
      * Respuesta de lista de plantillas

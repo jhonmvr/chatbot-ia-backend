@@ -1152,9 +1152,11 @@ public class WhatsAppTemplateController {
             dto.put("metaTemplateId", template.metaTemplateId());
         }
         
-        if (template.rejectionReason() != null) {
-            dto.put("rejectionReason", template.rejectionReason());
-        }
+        // Agregar información de rechazo (siempre incluir los campos, incluso si son null)
+        dto.put("rejectionReason", template.rejectionReason());
+        dto.put("rejectionCode", template.rejectionCode());
+        dto.put("rejectionDetails", template.rejectionDetails());
+        dto.put("rejectedAt", template.rejectedAt());
         
         return dto;
     }
@@ -1179,10 +1181,12 @@ public class WhatsAppTemplateController {
             dto.put("metaTemplateId", template.metaTemplateId());
         }
 
-        if (template.rejectionReason() != null) {
-            dto.put("rejectionReason", template.rejectionReason());
-        }
-
+        // Agregar información de rechazo (siempre incluir los campos, incluso si son null)
+        dto.put("rejectionReason", template.rejectionReason());
+        dto.put("rejectionCode", template.rejectionCode());
+        dto.put("rejectionDetails", template.rejectionDetails());
+        dto.put("rejectedAt", template.rejectedAt());
+        
         return dto;
     }
     

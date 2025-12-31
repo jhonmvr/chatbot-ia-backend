@@ -113,6 +113,9 @@ public class WhatsAppTemplateService {
             existingTemplate.metaTemplateId(),
             existingTemplate.qualityRating(),
             existingTemplate.rejectionReason(),
+            existingTemplate.rejectionCode(),
+            existingTemplate.rejectionDetails(),
+            existingTemplate.rejectedAt(),
             existingTemplate.createdAt(),
             Instant.now()
         );
@@ -197,21 +200,37 @@ public class WhatsAppTemplateService {
             if (response != null) {
                 // Mapear estado de Meta a nuestro enum
                 TemplateStatus newStatus = mapMetaStatusToTemplateStatus(response.status());
-                QualityRating newQualityRating = mapMetaQualityToQualityRating(response.quality_score());
+                // quality_score es un objeto, extraer el valor del campo score
+                QualityRating newQualityRating = mapMetaQualityToQualityRating(response.qualityScoreValue());
                 
                 // Actualizar plantilla
                 WhatsAppTemplate updatedTemplate = template
                     .withStatus(newStatus)
                     .withQualityRating(newQualityRating);
                 
-                // Limpiar razón de rechazo si está aprobada
-                if (newStatus == TemplateStatus.APPROVED) {
-                    updatedTemplate = updatedTemplate.withRejectionReason(null);
+                // Actualizar información de rechazo según el estado
+                if (newStatus == TemplateStatus.REJECTED && response.rejected_reason() != null) {
+                    // Guardar toda la información de rechazo desde Meta
+                    // Extraer código de error si está disponible en el rejection_reason
+                    String rejectionCode = extractRejectionCode(response.rejected_reason());
+                    java.util.Map<String, Object> rejectionDetails = buildRejectionDetails(response.rejected_reason());
+                    
+                    updatedTemplate = updatedTemplate.withRejectionInfo(
+                        response.rejected_reason(),
+                        rejectionCode,
+                        rejectionDetails
+                    );
+                    log.info("Información de rechazo guardada desde Meta - Reason: {}, Code: {}", 
+                        response.rejected_reason(), rejectionCode);
+                } else if (newStatus == TemplateStatus.APPROVED) {
+                    // Limpiar toda la información de rechazo si está aprobada
+                    updatedTemplate = updatedTemplate.clearRejectionInfo();
                 }
                 
                 templateRepository.save(updatedTemplate);
                 
-                log.info("Estado de plantilla actualizado desde Meta: {} -> {}", templateId.value(), newStatus);
+                log.info("Estado de plantilla actualizado desde Meta: {} -> {} (rejection_reason: {})", 
+                    templateId.value(), newStatus, response.rejected_reason());
                 return updatedTemplate;
             }
             
@@ -536,5 +555,61 @@ public class WhatsAppTemplateService {
             case "LOW" -> QualityRating.LOW;
             default -> QualityRating.PENDING;
         };
+    }
+    
+    /**
+     * Extrae el código de rechazo del motivo de rechazo de Meta
+     * Los códigos suelen estar en formato como "ERROR_CODE: Description"
+     */
+    private String extractRejectionCode(String rejectionReason) {
+        if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
+            return null;
+        }
+        
+        // Buscar patrones comunes de códigos de error
+        // Ejemplo: "INVALID_FORMAT: The template format is invalid"
+        if (rejectionReason.contains(":")) {
+            String[] parts = rejectionReason.split(":", 2);
+            if (parts.length > 0) {
+                String code = parts[0].trim();
+                // Verificar si parece un código de error (mayúsculas, guiones bajos, números)
+                if (code.matches("^[A-Z0-9_]+$")) {
+                    return code;
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Construye un mapa con detalles estructurados del rechazo
+     */
+    private java.util.Map<String, Object> buildRejectionDetails(String rejectionReason) {
+        java.util.Map<String, Object> details = new java.util.HashMap<>();
+        
+        if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
+            return details;
+        }
+        
+        details.put("reason", rejectionReason);
+        
+        // Extraer código si existe
+        String code = extractRejectionCode(rejectionReason);
+        if (code != null) {
+            details.put("code", code);
+            // Extraer descripción si existe
+            if (rejectionReason.contains(":")) {
+                String[] parts = rejectionReason.split(":", 2);
+                if (parts.length > 1) {
+                    details.put("description", parts[1].trim());
+                }
+            }
+        }
+        
+        // Agregar timestamp
+        details.put("receivedAt", java.time.Instant.now().toString());
+        
+        return details;
     }
 }

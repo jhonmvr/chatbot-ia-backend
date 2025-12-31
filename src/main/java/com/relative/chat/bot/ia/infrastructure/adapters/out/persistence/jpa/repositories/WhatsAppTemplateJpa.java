@@ -113,6 +113,9 @@ public interface WhatsAppTemplateJpa extends JpaRepository<WhatsAppTemplateEntit
             wt.meta_template_id,
             wt.quality_rating,
             wt.rejection_reason,
+            wt.rejection_code,
+            wt.rejection_details,
+            wt.rejected_at,
             wt.components,
             wt.created_at,
             wt.updated_at

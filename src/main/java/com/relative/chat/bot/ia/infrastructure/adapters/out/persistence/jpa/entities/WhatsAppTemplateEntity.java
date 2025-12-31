@@ -59,6 +59,26 @@ public class WhatsAppTemplateEntity {
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
     
+    /**
+     * Código de error de rechazo de Meta (si está disponible)
+     */
+    @Column(name = "rejection_code", length = 50)
+    private String rejectionCode;
+    
+    /**
+     * Detalles adicionales del rechazo en formato JSON
+     * Puede contener información estructurada sobre el motivo del rechazo
+     */
+    @Column(name = "rejection_details", columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
+    private Map<String, Object> rejectionDetails;
+    
+    /**
+     * Fecha y hora en que se produjo el rechazo
+     */
+    @Column(name = "rejected_at")
+    private OffsetDateTime rejectedAt;
+    
     @ColumnDefault("'[]'::jsonb")
     @Column(name = "components", nullable = false)
     @JdbcTypeCode(SqlTypes.JSON)

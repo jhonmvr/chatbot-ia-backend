@@ -123,3 +123,21 @@ databaseChangeLog:
             sql: DROP INDEX IF EXISTS idx_api_key_api_key CASCADE;
             sql: DROP INDEX IF EXISTS idx_api_key_client_id CASCADE;
             sql: DROP TABLE IF EXISTS chatbotia.api_key CASCADE;
+
+  - changeSet:
+      id: 10
+      author: system
+      changes:
+        - sqlFile:
+            path: classpath:db/migration/V10__add_rejection_fields_to_whatsapp_templates.sql
+            splitStatements: false
+            stripComments: false
+      rollback:
+        - sql:
+            sql: DROP INDEX IF EXISTS idx_whatsapp_templates_rejected_status CASCADE;
+            sql: DROP INDEX IF EXISTS idx_whatsapp_templates_rejected_at CASCADE;
+            sql: DROP INDEX IF EXISTS idx_whatsapp_templates_rejection_details CASCADE;
+            sql: DROP INDEX IF EXISTS idx_whatsapp_templates_rejection_code CASCADE;
+            sql: ALTER TABLE chatbotia.whatsapp_templates DROP COLUMN IF EXISTS rejected_at CASCADE;
+            sql: ALTER TABLE chatbotia.whatsapp_templates DROP COLUMN IF EXISTS rejection_details CASCADE;
+            sql: ALTER TABLE chatbotia.whatsapp_templates DROP COLUMN IF EXISTS rejection_code CASCADE;

@@ -289,12 +289,16 @@ public class MetaWhatsAppUnifiedWebhookController {
      * Según la documentación de Meta:
      * https://developers.facebook.com/documentation/business-messaging/whatsapp/webhooks/reference/message_template_status_update
      * 
-     * El payload contiene:
-     * - event: El estado del evento (APPROVED, REJECTED, PAUSED, etc.)
+     * El payload contiene en el campo "value":
+     * - event: El estado del evento (APPROVED, REJECTED, PAUSED, DISABLED, etc.)
      * - message_template_id: El ID del template en Meta
      * - message_template_name: El nombre del template
      * - message_template_language: El idioma del template
-     * - reason: La razón del cambio (puede ser "NONE" o una razón de rechazo)
+     * - message_template_category: La categoría del template (MARKETING, AUTHENTICATION, UTILITY)
+     * - reason: Código de razón del cambio (ej: "INVALID_FORMAT", "NONE", etc.)
+     * - rejection_info: Objeto con información detallada del rechazo (solo cuando event = REJECTED)
+     *   - reason: Mensaje descriptivo del motivo del rechazo
+     *   - recommendation: Recomendaciones para corregir el problema
      */
     @Hidden
     private void processTemplateStatusUpdate(Map<String, Object> value) {
@@ -303,9 +307,11 @@ public class MetaWhatsAppUnifiedWebhookController {
         try {
             String templateId = extractTemplateId(value);
             String event = extractEvent(value);
-            String reason = extractReason(value);
+            String reason = extractReason(value); // Código como "INVALID_FORMAT"
             String templateName = extractTemplateName(value);
             String templateLanguage = extractTemplateLanguage(value);
+            String templateCategory = extractTemplateCategory(value);
+            Map<String, Object> rejectionInfo = extractRejectionInfo(value);
             
             if (templateId == null || event == null) {
                 log.warn("Datos incompletos para actualización de estado de template. TemplateId: {}, Event: {}", 
@@ -325,13 +331,71 @@ public class MetaWhatsAppUnifiedWebhookController {
             
             WhatsAppTemplate updatedTemplate = template.withStatus(mappedStatus);
             
-            // Actualizar razón de rechazo solo si el evento es REJECTED y hay una razón
-            // Si reason es "NONE", no guardamos razón de rechazo
-            if (mappedStatus == TemplateStatus.REJECTED && reason != null && !"NONE".equalsIgnoreCase(reason)) {
-                updatedTemplate = updatedTemplate.withRejectionReason(reason);
+            // Actualizar información de rechazo solo si el evento es REJECTED
+            if (mappedStatus == TemplateStatus.REJECTED) {
+                // Extraer información del objeto rejection_info si está disponible
+                String rejectionReasonMessage = null;
+                String rejectionRecommendation = null;
+                
+                if (rejectionInfo != null && !rejectionInfo.isEmpty()) {
+                    rejectionReasonMessage = (String) rejectionInfo.get("reason");
+                    rejectionRecommendation = (String) rejectionInfo.get("recommendation");
+                }
+                
+                // Usar el mensaje de rejection_info.reason como motivo principal, o el código reason como fallback
+                String finalRejectionReason = rejectionReasonMessage != null && !rejectionReasonMessage.isEmpty()
+                    ? rejectionReasonMessage
+                    : (reason != null && !"NONE".equalsIgnoreCase(reason) ? reason : null);
+                
+                if (finalRejectionReason != null) {
+                    // El campo "reason" del payload es el código (ej: "INVALID_FORMAT")
+                    String rejectionCode = reason != null && !"NONE".equalsIgnoreCase(reason) ? reason : null;
+                    
+                    // Construir detalles estructurados del rechazo
+                    java.util.Map<String, Object> rejectionDetails = new java.util.HashMap<>();
+                    rejectionDetails.put("reason", finalRejectionReason);
+                    
+                    if (rejectionCode != null) {
+                        rejectionDetails.put("code", rejectionCode);
+                    }
+                    
+                    if (rejectionRecommendation != null) {
+                        rejectionDetails.put("recommendation", rejectionRecommendation);
+                    }
+                    
+                    // Agregar información adicional del webhook
+                    if (templateName != null) {
+                        rejectionDetails.put("templateName", templateName);
+                    }
+                    if (templateLanguage != null) {
+                        rejectionDetails.put("templateLanguage", templateLanguage);
+                    }
+                    if (templateCategory != null) {
+                        rejectionDetails.put("templateCategory", templateCategory);
+                    }
+                    rejectionDetails.put("event", event);
+                    rejectionDetails.put("receivedAt", Instant.now().toString());
+                    
+                    // Si hay rejection_info completo, incluirlo también
+                    if (rejectionInfo != null) {
+                        rejectionDetails.put("rejectionInfo", rejectionInfo);
+                    }
+                    
+                    updatedTemplate = updatedTemplate.withRejectionInfo(finalRejectionReason, rejectionCode, rejectionDetails);
+                    log.info("Información de rechazo guardada desde webhook - Reason: {}, Code: {}, Template: {}, Recommendation: {}", 
+                        finalRejectionReason, rejectionCode, templateName, rejectionRecommendation);
+                } else {
+                    // Si no hay razón específica, limpiar información de rechazo
+                    updatedTemplate = updatedTemplate.clearRejectionInfo();
+                    log.info("Template rechazado sin razón específica, información de rechazo limpiada");
+                }
             } else if (mappedStatus == TemplateStatus.APPROVED) {
-                // Limpiar razón de rechazo cuando se aprueba
-                updatedTemplate = updatedTemplate.withRejectionReason(null);
+                // Limpiar toda la información de rechazo cuando se aprueba
+                updatedTemplate = updatedTemplate.clearRejectionInfo();
+                log.info("Template aprobado, información de rechazo limpiada");
+            } else {
+                // Para otros estados (PAUSED, DISABLED, etc.), mantener la información de rechazo existente
+                // pero no actualizarla
             }
             
             templateRepository.save(updatedTemplate);
@@ -579,17 +643,31 @@ public class MetaWhatsAppUnifiedWebhookController {
     
     /**
      * Extrae el ID del template desde el payload de message_template_status_update
-     * Campo: message_template_id
+     * Campo: message_template_id (puede ser String o Number según la versión de la API)
      */
     private String extractTemplateId(Map<String, Object> value) {
         try {
             // Según la documentación de Meta, el campo es "message_template_id"
-            String templateId = (String) value.get("message_template_id");
-            if (templateId == null) {
+            // Puede venir como String o como Number (Long)
+            Object templateIdObj = value.get("message_template_id");
+            
+            if (templateIdObj == null) {
                 // Fallback por compatibilidad
-                templateId = (String) value.get("id");
+                templateIdObj = value.get("id");
             }
-            return templateId;
+            
+            if (templateIdObj == null) {
+                return null;
+            }
+            
+            // Convertir a String si es necesario
+            if (templateIdObj instanceof String) {
+                return (String) templateIdObj;
+            } else if (templateIdObj instanceof Number) {
+                return String.valueOf(templateIdObj);
+            } else {
+                return templateIdObj.toString();
+            }
         } catch (Exception e) {
             log.warn("Error al extraer template ID: {}", e.getMessage());
             return null;
@@ -618,18 +696,48 @@ public class MetaWhatsAppUnifiedWebhookController {
     /**
      * Extrae la razón del cambio desde el payload de message_template_status_update
      * Campo: reason (puede ser "NONE" o una razón de rechazo)
+     * Este campo es más genérico y puede usarse para diferentes tipos de eventos
      */
     private String extractReason(Map<String, Object> value) {
         try {
             // Según la documentación de Meta, el campo es "reason"
-            String reason = (String) value.get("reason");
-            if (reason == null) {
-                // Fallback por compatibilidad
-                reason = (String) value.get("rejection_reason");
-            }
-            return reason;
+            return (String) value.get("reason");
         } catch (Exception e) {
             log.warn("Error al extraer reason: {}", e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Extrae el objeto rejection_info desde el payload de message_template_status_update
+     * Campo: rejection_info (objeto con información detallada del rechazo)
+     * Contiene:
+     * - reason: Mensaje descriptivo del motivo del rechazo
+     * - recommendation: Recomendaciones para corregir el problema
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> extractRejectionInfo(Map<String, Object> value) {
+        try {
+            Object rejectionInfoObj = value.get("rejection_info");
+            if (rejectionInfoObj instanceof Map) {
+                return (Map<String, Object>) rejectionInfoObj;
+            }
+            return null;
+        } catch (Exception e) {
+            log.debug("Error al extraer rejection_info: {}", e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Extrae la categoría del template desde el payload
+     * Campo: message_template_category (MARKETING, AUTHENTICATION, UTILITY)
+     */
+    private String extractTemplateCategory(Map<String, Object> value) {
+        try {
+            return (String) value.get("message_template_category");
+        } catch (Exception e) {
+            log.debug("Error al extraer template category: {}", e.getMessage());
             return null;
         }
     }
@@ -694,4 +802,5 @@ public class MetaWhatsAppUnifiedWebhookController {
             default -> QualityRating.PENDING;
         };
     }
+    
 }

@@ -66,6 +66,22 @@ public record WhatsAppTemplate(
     String rejectionReason,
     
     /**
+     * Código de error de rechazo de Meta (si está disponible)
+     */
+    String rejectionCode,
+    
+    /**
+     * Detalles adicionales del rechazo en formato JSON
+     * Puede contener información estructurada sobre el motivo del rechazo
+     */
+    java.util.Map<String, Object> rejectionDetails,
+    
+    /**
+     * Fecha y hora en que se produjo el rechazo
+     */
+    Instant rejectedAt,
+    
+    /**
      * Fecha de creación
      */
     Instant createdAt,
@@ -99,6 +115,9 @@ public record WhatsAppTemplate(
             null,
             QualityRating.PENDING,
             null,
+            null,
+            null,
+            null,
             now,
             now
         );
@@ -119,12 +138,16 @@ public record WhatsAppTemplate(
         String metaTemplateId,
         QualityRating qualityRating,
         String rejectionReason,
+        String rejectionCode,
+        java.util.Map<String, Object> rejectionDetails,
+        Instant rejectedAt,
         Instant createdAt,
         Instant updatedAt
     ) {
         return new WhatsAppTemplate(
             id, clientPhoneId, name, category, language, status, parameterFormat,
-            components, metaTemplateId, qualityRating, rejectionReason, createdAt, updatedAt
+            components, metaTemplateId, qualityRating, rejectionReason, rejectionCode,
+            rejectionDetails, rejectedAt, createdAt, updatedAt
         );
     }
     
@@ -134,7 +157,8 @@ public record WhatsAppTemplate(
     public WhatsAppTemplate withStatus(TemplateStatus newStatus) {
         return new WhatsAppTemplate(
             id, clientPhoneId, name, category, language, newStatus, parameterFormat,
-            components, metaTemplateId, qualityRating, rejectionReason, createdAt, Instant.now()
+            components, metaTemplateId, qualityRating, rejectionReason, rejectionCode,
+            rejectionDetails, rejectedAt, createdAt, Instant.now()
         );
     }
     
@@ -144,7 +168,8 @@ public record WhatsAppTemplate(
     public WhatsAppTemplate withMetaTemplateId(String metaId) {
         return new WhatsAppTemplate(
             id, clientPhoneId, name, category, language, status, parameterFormat,
-            components, metaId, qualityRating, rejectionReason, createdAt, Instant.now()
+            components, metaId, qualityRating, rejectionReason, rejectionCode,
+            rejectionDetails, rejectedAt, createdAt, Instant.now()
         );
     }
     
@@ -154,7 +179,8 @@ public record WhatsAppTemplate(
     public WhatsAppTemplate withQualityRating(QualityRating rating) {
         return new WhatsAppTemplate(
             id, clientPhoneId, name, category, language, status, parameterFormat,
-            components, metaTemplateId, rating, rejectionReason, createdAt, Instant.now()
+            components, metaTemplateId, rating, rejectionReason, rejectionCode,
+            rejectionDetails, rejectedAt, createdAt, Instant.now()
         );
     }
     
@@ -164,7 +190,31 @@ public record WhatsAppTemplate(
     public WhatsAppTemplate withRejectionReason(String reason) {
         return new WhatsAppTemplate(
             id, clientPhoneId, name, category, language, status, parameterFormat,
-            components, metaTemplateId, qualityRating, reason, createdAt, Instant.now()
+            components, metaTemplateId, qualityRating, reason, rejectionCode,
+            rejectionDetails, rejectedAt, createdAt, Instant.now()
+        );
+    }
+    
+    /**
+     * Actualiza toda la información de rechazo
+     */
+    public WhatsAppTemplate withRejectionInfo(String reason, String code, java.util.Map<String, Object> details) {
+        Instant now = Instant.now();
+        return new WhatsAppTemplate(
+            id, clientPhoneId, name, category, language, status, parameterFormat,
+            components, metaTemplateId, qualityRating, reason, code, details, now,
+            createdAt, Instant.now()
+        );
+    }
+    
+    /**
+     * Limpia toda la información de rechazo
+     */
+    public WhatsAppTemplate clearRejectionInfo() {
+        return new WhatsAppTemplate(
+            id, clientPhoneId, name, category, language, status, parameterFormat,
+            components, metaTemplateId, qualityRating, null, null, null, null,
+            createdAt, Instant.now()
         );
     }
     
@@ -180,6 +230,27 @@ public record WhatsAppTemplate(
      */
     public Optional<String> rejectionReasonOpt() {
         return Optional.ofNullable(rejectionReason);
+    }
+    
+    /**
+     * Obtiene rejectionCode como Optional
+     */
+    public Optional<String> rejectionCodeOpt() {
+        return Optional.ofNullable(rejectionCode);
+    }
+    
+    /**
+     * Obtiene rejectionDetails como Optional
+     */
+    public Optional<java.util.Map<String, Object>> rejectionDetailsOpt() {
+        return Optional.ofNullable(rejectionDetails);
+    }
+    
+    /**
+     * Obtiene rejectedAt como Optional
+     */
+    public Optional<Instant> rejectedAtOpt() {
+        return Optional.ofNullable(rejectedAt);
     }
     
     /**

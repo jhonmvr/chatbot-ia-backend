@@ -37,6 +37,9 @@ public class WhatsAppTemplateMapper {
             entity.getMetaTemplateId(),
             entity.getQualityRating() != null ? QualityRating.valueOf(entity.getQualityRating()) : QualityRating.PENDING,
             entity.getRejectionReason(),
+            entity.getRejectionCode(),
+            entity.getRejectionDetails(),
+            entity.getRejectedAt() != null ? entity.getRejectedAt().toInstant() : null,
             entity.getCreatedAt() != null ? entity.getCreatedAt().toInstant() : null,
             entity.getUpdatedAt() != null ? entity.getUpdatedAt().toInstant() : null
         );
@@ -57,6 +60,9 @@ public class WhatsAppTemplateMapper {
         entity.setMetaTemplateId(domain.metaTemplateId());
         entity.setQualityRating(domain.qualityRating().name());
         entity.setRejectionReason(domain.rejectionReason());
+        entity.setRejectionCode(domain.rejectionCode());
+        entity.setRejectionDetails(domain.rejectionDetails());
+        entity.setRejectedAt(domain.rejectedAt() != null ? OffsetDateTime.ofInstant(domain.rejectedAt(), ZoneOffset.UTC) : null);
         entity.setComponents(mapComponentsToJson(domain.components()));
         entity.setCreatedAt(domain.createdAt() != null ? OffsetDateTime.ofInstant(domain.createdAt(), ZoneOffset.UTC) : OffsetDateTime.now());
         entity.setUpdatedAt(domain.updatedAt() != null ? OffsetDateTime.ofInstant(domain.updatedAt(), ZoneOffset.UTC) : OffsetDateTime.now());
