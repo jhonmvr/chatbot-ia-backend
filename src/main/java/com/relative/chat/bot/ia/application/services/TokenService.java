@@ -39,38 +39,65 @@ public class TokenService {
         }
         
         try {
-            int separatorIndex = token.indexOf(TOKEN_SEPARATOR);
-            if (separatorIndex <= 0 || separatorIndex >= token.length() - 1) {
-                log.warn("Token con formato inválido: {}", token);
+            // Un UUID tiene exactamente 36 caracteres (formato: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+            // Buscamos el separador después del UUID completo (posición 36)
+            int uuidLength = 36;
+            if (token.length() <= uuidLength) {
+                log.warn("Token demasiado corto para contener UUID y hash: {}", token);
                 return null;
             }
             
-            String clientIdStr = token.substring(0, separatorIndex);
+            // El separador debe estar en la posición 36 (justo después del UUID)
+            if (token.charAt(uuidLength) != TOKEN_SEPARATOR.charAt(0)) {
+                log.warn("Token sin separador después del UUID en posición 36: {}", token);
+                return null;
+            }
+            
+            String clientIdStr = token.substring(0, uuidLength);
             return UuidId.of(java.util.UUID.fromString(clientIdStr));
         } catch (IllegalArgumentException e) {
             log.warn("Error al extraer clientId del token: {}", e.getMessage());
+            return null;
+        } catch (StringIndexOutOfBoundsException e) {
+            log.warn("Error al extraer clientId del token (índice fuera de rango): {}", e.getMessage());
             return null;
         }
     }
     
     /**
      * Valida el formato de un token
+     * Formato esperado: {UUID de 36 caracteres}-{hash aleatorio}
      */
     public boolean isValidFormat(String token) {
         if (token == null || token.isBlank()) {
+            log.debug("Token nulo o vacío");
             return false;
         }
         
-        int separatorIndex = token.indexOf(TOKEN_SEPARATOR);
-        if (separatorIndex <= 0 || separatorIndex >= token.length() - 1) {
+        // Un UUID tiene exactamente 36 caracteres
+        int uuidLength = 36;
+        if (token.length() <= uuidLength) {
+            log.debug("Token demasiado corto (length: {}, mínimo esperado: {})", token.length(), uuidLength + 1);
+            return false;
+        }
+        
+        // El separador debe estar en la posición 36 (justo después del UUID)
+        if (token.charAt(uuidLength) != TOKEN_SEPARATOR.charAt(0)) {
+            log.debug("Token sin separador en posición 36 (char en posición 36: '{}')", 
+                token.length() > uuidLength ? token.charAt(uuidLength) : "N/A");
             return false;
         }
         
         try {
-            String clientIdStr = token.substring(0, separatorIndex);
+            String clientIdStr = token.substring(0, uuidLength);
             java.util.UUID.fromString(clientIdStr);
+            log.debug("Formato de token válido (clientId: {})", clientIdStr);
             return true;
         } catch (IllegalArgumentException e) {
+            log.debug("Error al validar formato UUID del token: {}", e.getMessage());
+            return false;
+        } catch (StringIndexOutOfBoundsException e) {
+            log.debug("Error al validar formato del token (índice fuera de rango): {}", e.getMessage());
             return false;
         }
     }

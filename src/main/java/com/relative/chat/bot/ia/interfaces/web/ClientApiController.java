@@ -3,12 +3,14 @@ package com.relative.chat.bot.ia.interfaces.web;
 import com.relative.chat.bot.ia.application.services.WhatsAppTemplateService;
 import com.relative.chat.bot.ia.application.usecases.CloseConversation;
 import com.relative.chat.bot.ia.application.usecases.GetConversationHistory;
+import com.relative.chat.bot.ia.application.usecases.ListConversations;
 import com.relative.chat.bot.ia.application.usecases.SendBulkTemplate;
 import com.relative.chat.bot.ia.domain.common.UuidId;
 import com.relative.chat.bot.ia.domain.messaging.*;
 import com.relative.chat.bot.ia.domain.ports.identity.ClientPhoneRepository;
 import com.relative.chat.bot.ia.domain.ports.messaging.ContactRepository;
 import com.relative.chat.bot.ia.domain.ports.messaging.ConversationRepository;
+import com.relative.chat.bot.ia.domain.types.Channel;
 import com.relative.chat.bot.ia.domain.vo.Email;
 import com.relative.chat.bot.ia.domain.vo.PhoneE164;
 import com.relative.chat.bot.ia.infrastructure.security.SecurityUtils;
@@ -51,6 +53,7 @@ public class ClientApiController {
     private final ClientPhoneRepository clientPhoneRepository;
     private final GetConversationHistory getConversationHistory;
     private final CloseConversation closeConversation;
+    private final ListConversations listConversations;
     private final SendBulkTemplate sendBulkTemplate;
     
     // ==================== CONTACTOS ====================
@@ -2222,6 +2225,123 @@ public class ClientApiController {
         }
     }
     
+    @Operation(
+        summary = "Listar conversaciones del cliente autenticado",
+        description = "Lista todas las conversaciones del cliente autenticado con capacidad de búsqueda en títulos, mensajes y contactos. " +
+                     "Funciona como una lista de chats donde cada conversación muestra información del contacto y último mensaje. " +
+                     "El clientId se obtiene automáticamente del token de autenticación."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Lista de conversaciones obtenida exitosamente",
+            content = @Content(
+                mediaType = "application/json",
+                examples = @ExampleObject(value = """
+                    {
+                      "status": "success",
+                      "conversations": [
+                        {
+                          "id": "550e8400-e29b-41d4-a716-446655440000",
+                          "clientId": "123e4567-e89b-12d3-a456-426614174000",
+                          "contactId": "987fbc97-4bed-5078-9f07-9141ba07c9f3",
+                          "contact": {
+                            "id": "987fbc97-4bed-5078-9f07-9141ba07c9f3",
+                            "displayName": "Juan Pérez",
+                            "phone": "+593991234567",
+                            "email": "juan@example.com"
+                          },
+                          "status": "OPEN",
+                          "channel": "WHATSAPP",
+                          "title": "Consulta sobre producto",
+                          "startedAt": "2025-10-03T10:30:00Z",
+                          "closedAt": null,
+                          "lastMessage": {
+                            "id": "msg-001",
+                            "content": "Gracias por su respuesta",
+                            "direction": "INBOUND",
+                            "createdAt": "2025-10-03T11:00:00Z"
+                          },
+                          "messageCount": 5
+                        }
+                      ],
+                      "total": 150,
+                      "page": 0,
+                      "size": 20,
+                      "totalPages": 8
+                    }
+                    """)
+            )
+        ),
+        @ApiResponse(responseCode = "401", description = "No autenticado"),
+        @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    })
+    @GetMapping("/conversations")
+    public ResponseEntity<Map<String, Object>> listConversations(
+        @Parameter(description = "Texto de búsqueda (busca en títulos, mensajes y contactos)")
+        @RequestParam(required = false) String query,
+        
+        @Parameter(description = "UUID del contacto para filtrar")
+        @RequestParam(required = false) String contactId,
+        
+        @Parameter(description = "Estado de la conversación (OPEN, CLOSED)")
+        @RequestParam(required = false) String status,
+        
+        @Parameter(description = "Canal de comunicación (WHATSAPP, SMS, etc.)")
+        @RequestParam(required = false) String channel,
+        
+        @Parameter(description = "Número de página (0-indexed)", example = "0")
+        @RequestParam(defaultValue = "0") int page,
+        
+        @Parameter(description = "Tamaño de página", example = "20")
+        @RequestParam(defaultValue = "20") int size
+    ) {
+        try {
+            // Obtener clientId del token de autenticación
+            UuidId<com.relative.chat.bot.ia.domain.identity.Client> clientUuidId = SecurityUtils.requireAuthenticatedClientId();
+            
+            UuidId<Contact> contactUuidId = contactId != null ? UuidId.of(UUID.fromString(contactId)) : null;
+            Channel channelEnum = channel != null && !channel.isEmpty() ? Channel.valueOf(channel) : null;
+            
+            ConversationRepository.SearchResult result = listConversations.handle(
+                clientUuidId,
+                query,
+                contactUuidId,
+                status,
+                channelEnum,
+                page,
+                size
+            );
+            
+            // Enriquecer con información de contacto y último mensaje
+            List<Map<String, Object>> conversationDtos = result.conversations().stream()
+                .map(conv -> toConversationListItemDto(conv))
+                .toList();
+            
+            return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "conversations", conversationDtos,
+                "total", result.total(),
+                "page", result.page(),
+                "size", result.size(),
+                "totalPages", result.totalPages()
+            ));
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Error de validación: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of(
+                "status", "error",
+                "message", "Parámetro inválido: " + e.getMessage()
+            ));
+        } catch (Exception e) {
+            log.error("Error al listar conversaciones: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "status", "error",
+                "message", "Error al listar conversaciones: " + e.getMessage()
+            ));
+        }
+    }
+    
     // ==================== MÉTODOS AUXILIARES ====================
     
     @SuppressWarnings("unchecked")
@@ -2323,6 +2443,55 @@ public class ClientApiController {
         dto.put("tags", contact.tagNames());
         dto.put("createdAt", contact.createdAt());
         dto.put("updatedAt", contact.updatedAt());
+        return dto;
+    }
+    
+    /**
+     * Convierte una conversación a DTO para lista de chats
+     * Incluye información del contacto y último mensaje
+     */
+    private Map<String, Object> toConversationListItemDto(Conversation conv) {
+        Map<String, Object> dto = new HashMap<>();
+        dto.put("id", conv.id().value().toString());
+        dto.put("clientId", conv.clientId().value().toString());
+        dto.put("contactId", conv.contactId().map(cId -> cId.value().toString()).orElse(null));
+        dto.put("status", conv.status().name());
+        dto.put("channel", conv.channel().name());
+        dto.put("title", conv.title() != null ? conv.title() : "");
+        dto.put("startedAt", conv.startedAt());
+        dto.put("closedAt", conv.closedAt().orElse(null));
+        
+        // Información del contacto
+        Map<String, Object> contactDto = new HashMap<>();
+        conv.contactId().ifPresent(contactId -> {
+            contactRepository.findById(contactId).ifPresent(contact -> {
+                contactDto.put("id", contact.id().value().toString());
+                contactDto.put("displayName", contact.displayName() != null ? contact.displayName() : "");
+                contactDto.put("phone", contact.phoneE164() != null ? contact.phoneE164().value() : null);
+                contactDto.put("email", contact.email() != null ? contact.email().value() : null);
+            });
+        });
+        dto.put("contact", contactDto.isEmpty() ? null : contactDto);
+        
+        // Último mensaje
+        List<Message> messages = getConversationHistory.handle(conv.id(), 1);
+        if (!messages.isEmpty()) {
+            Message lastMessage = messages.get(0);
+            Map<String, Object> lastMessageDto = Map.of(
+                "id", lastMessage.id().value().toString(),
+                "content", lastMessage.content() != null ? lastMessage.content() : "",
+                "direction", lastMessage.direction().name(),
+                "createdAt", lastMessage.createdAt()
+            );
+            dto.put("lastMessage", lastMessageDto);
+        } else {
+            dto.put("lastMessage", null);
+        }
+        
+        // Contador de mensajes
+        List<Message> allMessages = getConversationHistory.handle(conv.id(), 100);
+        dto.put("messageCount", allMessages.size());
+        
         return dto;
     }
     

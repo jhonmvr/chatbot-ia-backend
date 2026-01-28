@@ -5,6 +5,7 @@ import com.relative.chat.bot.ia.domain.identity.ApiKey;
 import com.relative.chat.bot.ia.domain.identity.Client;
 import com.relative.chat.bot.ia.domain.ports.identity.ApiKeyRepository;
 import com.relative.chat.bot.ia.domain.ports.identity.ClientRepository;
+import com.relative.chat.bot.ia.domain.types.EntityStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -103,21 +104,39 @@ public class ApiKeyService {
      * Valida un token y retorna el clientId si es válido
      */
     public Optional<UuidId<Client>> validateToken(String token) {
+        log.debug("Iniciando validación de token (length: {})", token != null ? token.length() : 0);
+        
         if (!tokenService.isValidFormat(token)) {
+            log.warn("Token con formato inválido (token preview: {}...)", 
+                token != null && token.length() > 30 ? token.substring(0, 30) : token);
             return Optional.empty();
         }
         
         UuidId<Client> clientId = tokenService.extractClientId(token);
         if (clientId == null) {
+            log.warn("No se pudo extraer clientId del token");
             return Optional.empty();
         }
+        
+        log.debug("ClientId extraído del token: {}", clientId.value());
         
         // Verificar que el cliente existe y está activo
         Optional<Client> clientOpt = clientRepository.findById(clientId);
-        if (clientOpt.isEmpty() || clientOpt.get().status().name().equals("INACTIVE")) {
+        if (clientOpt.isEmpty()) {
+            log.warn("Cliente no encontrado para token: {}", clientId.value());
             return Optional.empty();
         }
         
+        Client client = clientOpt.get();
+        log.debug("Cliente encontrado: {} con status: {}", clientId.value(), client.status());
+        
+        // Verificar que el cliente esté activo (no inactivo, bloqueado o eliminado)
+        if (client.status() != EntityStatus.ACTIVE) {
+            log.warn("Cliente con estado no activo: {} (status: {})", clientId.value(), client.status());
+            return Optional.empty();
+        }
+        
+        log.debug("Token válido para cliente: {}", clientId.value());
         return Optional.of(clientId);
     }
     

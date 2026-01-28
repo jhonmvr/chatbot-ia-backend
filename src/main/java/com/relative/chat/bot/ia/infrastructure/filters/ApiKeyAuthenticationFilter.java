@@ -52,24 +52,32 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         String token = extractToken(request);
         
         if (token == null || token.isBlank()) {
-            log.warn("Request sin token a endpoint protegido: {}", path);
+            log.warn("Request sin token a endpoint protegido: {} (headers: Authorization={}, X-API-Key={})", 
+                path, 
+                request.getHeader(AUTHORIZATION_HEADER) != null ? "presente" : "ausente",
+                request.getHeader(API_KEY_HEADER) != null ? "presente" : "ausente");
             sendUnauthorizedResponse(response, "Token requerido. Use header 'Authorization: Bearer <token>' o 'X-API-Key: <token>'");
             return;
         }
+        
+        log.debug("Validando token para path: {} (token length: {})", path, token.length());
         
         // Validar token
         Optional<UuidId<Client>> clientIdOpt = apiKeyService.validateToken(token);
         
         if (clientIdOpt.isEmpty()) {
-            log.warn("Token inválido en request a: {}", path);
+            log.warn("Token inválido en request a: {} (token preview: {}...)", 
+                path, 
+                token.length() > 20 ? token.substring(0, 20) : token);
             sendUnauthorizedResponse(response, "Token inválido o expirado");
             return;
         }
         
-        // Establecer clientId en el contexto
-        SecurityUtils.setAuthenticatedClientId(clientIdOpt.get());
+        // Establecer clientId en el contexto (tanto en request como en RequestContextHolder)
+        UuidId<Client> clientId = clientIdOpt.get();
+        SecurityUtils.setAuthenticatedClientId(request, clientId);
         
-        log.debug("Cliente autenticado: {} para path: {}", clientIdOpt.get().value(), path);
+        log.debug("Cliente autenticado: {} para path: {}", clientId.value(), path);
         
         // Continuar con la cadena de filtros
         filterChain.doFilter(request, response);
